@@ -34,10 +34,11 @@ const WalletView: React.FC = () => {
       }
   };
 
-  const handleTransfer = () => {
+  // Fix: handleTransfer must be async and await transfer since it returns a Promise
+  const handleTransfer = async () => {
       const amount = parseFloat(modalAmount);
       if (amount > 0 && modalAddress.trim()) {
-          const result = transfer(selectedAsset, amount);
+          const result = await transfer(selectedAsset, amount);
           if (result.success) {
               setMessage({ text: t.success_transfer, type: 'success' });
               setTimeout(() => { setMessage(null); setActiveModal(null); setModalAmount(''); setModalAddress(''); }, 1500);

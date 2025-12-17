@@ -122,7 +122,7 @@ export const HeroSection: React.FC<{ onBuyClick: () => void }> = ({ onBuyClick }
   );
 };
 
-// ... existing code for FeaturesSection, TokenomicsSection, RoadmapSection, TeamSection, CalculatorSection ...
+// --- Features Section ---
 export const FeaturesSection: React.FC = () => {
     const { language } = useStore();
     const t = translations[language].features;
@@ -156,6 +156,7 @@ export const FeaturesSection: React.FC = () => {
     );
 };
 
+// --- Tokenomics Section ---
 export const TokenomicsSection: React.FC = () => {
     const { language } = useStore();
     const t = translations[language].tokenomics;
@@ -216,6 +217,7 @@ export const TokenomicsSection: React.FC = () => {
     );
 };
 
+// --- Roadmap Section ---
 export const RoadmapSection: React.FC = () => {
     const { language } = useStore();
     const t = translations[language].roadmap;
@@ -260,9 +262,10 @@ export const RoadmapSection: React.FC = () => {
                     <div className="absolute left-[19px] md:left-1/2 top-0 bottom-0 w-1 bg-binance-gray/30 transform md:-translate-x-1/2"></div>
                     
                     {/* Vertical Progress Line */}
+                    {/* Fix: changed scaleY to scale to fix TS error while maintaining visual effect for 1px line */}
                     <div 
                         className="absolute left-[19px] md:left-1/2 top-0 w-1 bg-gradient-to-b from-binance-yellow via-binance-green to-binance-gray/30 transform md:-translate-x-1/2 transition-all duration-[2000ms] ease-out origin-top"
-                        style={{ height: isVisible ? '100%' : '0%', scaleY: isVisible ? 1 : 0 }}
+                        style={{ height: isVisible ? '100%' : '0%', scale: isVisible ? 1 : 0 }}
                     ></div>
 
                     <div className="space-y-12">
@@ -309,6 +312,7 @@ export const RoadmapSection: React.FC = () => {
     );
 };
 
+// --- Team Section ---
 export const TeamSection: React.FC = () => {
     const { language } = useStore();
     const t = translations[language].teamSection;
@@ -357,6 +361,7 @@ export const TeamSection: React.FC = () => {
     );
 };
 
+// --- Calculator Section ---
 export const CalculatorSection: React.FC = () => {
     const { language, marketData, setView, setSelectedSymbol } = useStore();
     const t = translations[language].calculator;

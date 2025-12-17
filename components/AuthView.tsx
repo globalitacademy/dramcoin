@@ -1,13 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { translations } from '../translations';
-import { Mail, Lock, User, ShieldCheck, Eye, EyeOff, AlertCircle, ArrowLeft, Smartphone, Globe, Loader2, Phone } from 'lucide-react';
+import { Mail, Lock, User, ShieldCheck, Eye, EyeOff, AlertCircle, CheckCircle, ArrowLeft, Smartphone, Globe, Loader2, Phone } from 'lucide-react';
 
 type AuthStep = 'login' | 'register' | 'forgot' | 'verify' | 'phone';
 
 const AuthView: React.FC = () => {
-  const { language, login, register, loginWithGoogle, loginWithPhone, verifyOtp, user } = useStore();
+  const { language, login, register, loginWithGoogle, loginWithPhone, verifyOtp } = useStore();
   const t = translations[language].auth;
   
   const [step, setStep] = useState<AuthStep>('login');
@@ -20,21 +20,17 @@ const AuthView: React.FC = () => {
   
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
     setError('');
+    setSuccess('');
     try {
       const result = await loginWithGoogle();
       if (result && !result.success) {
-        if (result.message?.includes('provider is not enabled')) {
-          setError(language === 'AM' 
-            ? 'Google մուտքը դեռ միացված չէ Supabase-ում: Խնդրում ենք ստուգել կարգավորումները:' 
-            : 'Google login is not enabled in Supabase Dashboard yet.');
-        } else {
-          setError(result.message || (language === 'AM' ? 'Google-ով մուտքը ձախողվեց:' : 'Google login failed.'));
-        }
+        setError(result.message || (language === 'AM' ? 'Google-ով մուտքը ձախողվեց:' : 'Google login failed.'));
       }
     } catch (err: any) {
       setError(err.message || 'OAuth Error');
@@ -47,6 +43,7 @@ const AuthView: React.FC = () => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    setSuccess('');
     const res = await loginWithPhone(phoneNumber);
     if (res.success) {
       setStep('verify');
@@ -83,24 +80,33 @@ const AuthView: React.FC = () => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    setSuccess('');
     const result = await login(email, password);
     if (!result.success) {
-        setError(language === 'AM' ? 'Սխալ տվյալներ' : 'Invalid credentials');
+        setError(language === 'AM' ? 'Մուտքի տվյալները սխալ են' : 'Invalid login credentials');
     }
     setIsLoading(false);
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setSuccess('');
+    
     if (password !== confirmPassword) {
         setError(language === 'AM' ? 'Գաղտնաբառերը չեն համընկնում' : 'Passwords do not match');
         return;
     }
+    
     setIsLoading(true);
-    setError('');
     const result = await register(username, email, password);
-    if (!result.success) {
-        setError(result.message || 'Registration failed');
+    
+    if (result.success) {
+        setSuccess(language === 'AM' 
+            ? 'Գրանցումը հաջողվեց։ Տեղափոխում ենք հաստատման էջ...' 
+            : 'Registration successful! Redirecting to verification...');
+    } else {
+        setError(result.message || (language === 'AM' ? 'Գրանցումը ձախողվեց' : 'Registration failed'));
     }
     setIsLoading(false);
   };
@@ -141,6 +147,12 @@ const AuthView: React.FC = () => {
         {error && (
             <div className="bg-red-900/20 border border-red-900/50 text-red-400 p-3 rounded-xl text-xs flex items-center gap-2 mb-6 animate-shake">
                 <AlertCircle size={16} /> {error}
+            </div>
+        )}
+
+        {success && (
+            <div className="bg-binance-green/10 border border-binance-green/30 text-binance-green p-3 rounded-xl text-xs flex items-center gap-2 mb-6 animate-fade-in">
+                <CheckCircle size={16} /> {success}
             </div>
         )}
 
@@ -214,29 +226,6 @@ const AuthView: React.FC = () => {
             </form>
         )}
 
-        {step === 'phone' && (
-            <form onSubmit={handlePhoneSubmit} className="space-y-4">
-                <div className="space-y-1">
-                    <label className="text-xs text-binance-subtext ml-1 uppercase font-bold tracking-wider">{language === 'AM' ? 'Հեռախոսահամար' : 'Phone Number'}</label>
-                    <div className="relative">
-                        <Phone className="absolute left-3 top-3.5 text-binance-subtext" size={18} />
-                        <input 
-                            type="tel" required
-                            placeholder="+374XXXXXXXX"
-                            value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)}
-                            className="w-full bg-binance-dark border border-binance-gray rounded-xl py-3 pl-10 pr-4 text-white focus:border-binance-yellow focus:outline-none"
-                        />
-                    </div>
-                </div>
-                <button 
-                    disabled={isLoading}
-                    className="w-full py-4 bg-binance-yellow text-black font-bold rounded-xl hover:shadow-xl transition-all active:scale-95 disabled:opacity-50"
-                >
-                    {isLoading ? <Loader2 className="animate-spin mx-auto" /> : t.phone_btn}
-                </button>
-            </form>
-        )}
-
         {step === 'register' && (
             <form onSubmit={handleRegister} className="space-y-4">
                 <div className="space-y-1">
@@ -290,6 +279,11 @@ const AuthView: React.FC = () => {
                 >
                     {isLoading ? <Loader2 className="animate-spin mx-auto" /> : t.btn_register}
                 </button>
+                <div className="text-center pt-4">
+                    <p className="text-sm text-binance-subtext">
+                        {t.have_account} <button type="button" onClick={() => setStep('login')} className="text-binance-yellow font-bold hover:underline">{t.btn_login}</button>
+                    </p>
+                </div>
             </form>
         )}
 

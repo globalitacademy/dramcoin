@@ -87,7 +87,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           await syncUserData(session.user.id, session.user.email || session.user.phone || '');
-          // If already logged in and on AUTH page, move to HOME
           if (window.location.search.includes('access_token') || window.location.hash.includes('access_token')) {
              setView(ViewState.HOME);
           }
@@ -104,8 +103,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
         await syncUserData(session.user.id, session.user.email || session.user.phone || '');
-        // On successful OAuth or login, redirect to Home/Wallet if currently in AUTH
-        setView(prev => (prev === ViewState.AUTH || prev === ViewState.VERIFY) ? ViewState.HOME : prev);
       } else {
         if (!localStorage.getItem('dramcoin_local_login')) {
           setUser(INITIAL_USER);
@@ -116,62 +113,72 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => subscription.unsubscribe();
   }, []);
 
-  // Admin Data Sync
-  useEffect(() => {
-    if (isAdminAuthenticated) {
-      fetchAllUsers();
-    }
-  }, [isAdminAuthenticated]);
-
-  const fetchAllUsers = async () => {
-    try {
-      const { data: profiles } = await supabase.from('profiles').select('*');
-      if (profiles) {
-        const usersList: User[] = await Promise.all(profiles.map(async (p) => {
-          const { data: assets } = await supabase.from('assets').select('*').eq('user_id', p.id);
-          const { data: txs } = await supabase.from('transactions').select('*').eq('user_id', p.id);
-          
-          return {
-            username: p.username || 'User',
-            email: p.id,
-            isLoggedIn: true,
-            kycStatus: p.kyc_status,
-            twoFactorEnabled: p.two_factor_enabled,
-            assets: assets?.map(a => ({ symbol: a.symbol, amount: a.amount, valueUsd: 0 })) || [],
-            transactions: txs?.map(t => ({ id: t.id, type: t.type as any, symbol: t.symbol, amount: t.amount, date: t.created_at, status: t.status as any })) || []
-          };
-        }));
-        setAllUsers(usersList);
-      }
-    } catch (err) {
-      console.error("Admin fetch error:", err);
-    }
-  };
-
   const syncUserData = async (userId: string, contact: string) => {
     try {
-      let { data: profile, error: pError } = await supabase.from('profiles').select('*').eq('id', userId).single();
-      if (!profile || pError) {
-        const { data: newProfile } = await supabase.from('profiles').upsert([{ id: userId, username: contact.split('@')[0] || 'User', kyc_status: 'unverified' }]).select().single();
+      // 1. Ensure profile exists
+      let { data: profile, error: pError } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+      
+      if (!profile) {
+        const { data: newProfile, error: createError } = await supabase.from('profiles').upsert([{ 
+          id: userId, 
+          username: contact.split('@')[0] || 'User', 
+          kyc_status: 'unverified' 
+        }], { onConflict: 'id' }).select().single();
+        
+        if (createError) throw new Error(`Profile creation failed: ${createError.message}`);
         profile = newProfile;
       }
-      let { data: assets } = await supabase.from('assets').select('*').eq('user_id', userId);
+
+      // 2. Ensure assets exist
+      let { data: assets, error: aError } = await supabase.from('assets').select('*').eq('user_id', userId);
+      
       if (!assets || assets.length === 0) {
         const initialAssets = [
           { user_id: userId, symbol: 'USDT', amount: 1000 },
           { user_id: userId, symbol: 'BTC', amount: 0 },
           { user_id: userId, symbol: 'DMC', amount: 0 }
         ];
-        await supabase.from('assets').insert(initialAssets);
+        const { error: insertAssetsError } = await supabase.from('assets').insert(initialAssets);
+        if (insertAssetsError) console.warn("Initial assets insert failed, might already exist.");
+        
         const { data: freshAssets } = await supabase.from('assets').select('*').eq('user_id', userId);
         assets = freshAssets;
       }
-      const { data: transactions } = await supabase.from('transactions').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-      const formattedAssets: Asset[] = assets?.map(a => ({ symbol: a.symbol, amount: a.amount, valueUsd: 0 })) || INITIAL_USER.assets;
-      const formattedTxs: Transaction[] = transactions?.map(t => ({ id: t.id, type: t.type as any, symbol: t.symbol, amount: t.amount, date: t.created_at, status: t.status as any })) || [];
-      setUser({ username: profile?.username || contact.split('@')[0] || 'User', email: contact, isLoggedIn: true, kycStatus: (profile?.kyc_status as any) || 'unverified', twoFactorEnabled: profile?.two_factor_enabled || false, assets: formattedAssets, transactions: formattedTxs });
-    } catch (err) {
-      console.error("Database Sync Error:", err);
+
+      // 3. Fetch transactions
+      const { data: transactions } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      
+      const formattedAssets: Asset[] = assets?.map(a => ({ 
+        symbol: a.symbol, 
+        amount: a.amount, 
+        valueUsd: 0 
+      })) || INITIAL_USER.assets;
+
+      const formattedTxs: Transaction[] = transactions?.map(t => ({ 
+        id: t.id, 
+        type: t.type as any, 
+        symbol: t.symbol, 
+        amount: t.amount, 
+        date: t.created_at, 
+        status: t.status as any 
+      })) || [];
+      
+      setUser({ 
+        username: profile?.username || contact.split('@')[0] || 'User', 
+        email: contact, 
+        isLoggedIn: true, 
+        kycStatus: (profile?.kyc_status as any) || 'unverified', 
+        twoFactorEnabled: profile?.two_factor_enabled || false, 
+        assets: formattedAssets, 
+        transactions: formattedTxs 
+      });
+    } catch (err: any) {
+      console.error("Database Sync Error:", err.message || err);
+      throw err; // Re-throw to be caught by register/login
     }
   };
 
@@ -192,24 +199,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
     }
   };
-
-  useEffect(() => {
-    setMarketData(prev => {
-      return prev.map(coin => {
-        if (coin.symbol === 'DMC') {
-          return {
-            ...coin,
-            price: 0.54 * dmcMultiplier,
-            change24h: dmcMultiplier > 1 ? 12 + (dmcMultiplier - 1) * 100 : 12
-          };
-        }
-        return coin;
-      });
-    });
-    if (selectedSymbol === 'DMC') {
-      setCurrentPrice(0.54 * dmcMultiplier);
-    }
-  }, [dmcMultiplier]);
 
   useEffect(() => {
     fetchMarketData();
@@ -242,13 +231,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const register = async (username: string, email: string, pass: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password: pass, options: { data: { username } } });
-    if (error) return { success: false, message: error.message };
-    if (data.user) {
-      setView(ViewState.HOME);
-      return { success: true };
+    try {
+      const { data, error } = await supabase.auth.signUp({ 
+        email, 
+        password: pass, 
+        options: { data: { username } } 
+      });
+      
+      if (error) return { success: false, message: error.message };
+      
+      if (data.user) {
+        // Must wait for sync to finish before moving to the next view
+        await syncUserData(data.user.id, email);
+        setView(ViewState.VERIFY);
+        return { success: true };
+      }
+      return { success: false, message: 'Registration failed: No user returned' };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Registration synchronization failed' };
     }
-    return { success: false, message: 'Registration failed' };
   };
 
   const loginWithGoogle = async () => {
@@ -257,10 +258,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         provider: 'google', 
         options: { 
           redirectTo: window.location.origin,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
+          queryParams: { access_type: 'offline', prompt: 'consent' },
         } 
       });
       if (error) throw error;
@@ -323,7 +321,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const adminVerifyKyc = async (userId: string, status: 'verified' | 'unverified') => {
     try {
       await supabase.from('profiles').update({ kyc_status: status }).eq('id', userId);
-      fetchAllUsers();
       if (user.email === userId) {
         setUser(prev => ({ ...prev, kycStatus: status }));
       }

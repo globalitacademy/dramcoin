@@ -165,11 +165,12 @@ const TradingView: React.FC = () => {
     setTotal((maxAmount * currentPrice).toFixed(2));
   };
 
-  const handleTrade = () => {
+  // Fix: handleTrade must be async and await executeTrade since it returns a Promise
+  const handleTrade = async () => {
       const numAmount = parseFloat(amount);
       if (isNaN(numAmount) || numAmount <= 0) return;
 
-      const result = executeTrade(activeTab, selectedSymbol, numAmount, currentPrice);
+      const result = await executeTrade(activeTab, selectedSymbol, numAmount, currentPrice);
       setTradeMessage({
           text: result.message,
           type: result.success ? 'success' : 'error'
@@ -275,7 +276,7 @@ const TradingView: React.FC = () => {
 
                 <div className="flex items-center gap-4 text-xs mt-1">
                     <span className={`font-mono ${currentPrice > 0 ? 'text-binance-green' : 'text-white'}`}>{currentPrice.toFixed(selectedSymbol === 'DMC' ? 4 : 2)}</span>
-                    <span className="text-binance-subtext">24h Vol: {marketData.find(c => c.symbol === selectedSymbol)?.volume || '...'}</span>
+                    <span className="text-binance-subtext">24h Vol: {marketData.find(c => c.symbol === 'DMC' && selectedSymbol === 'DMC' ? c : c.symbol === selectedSymbol)?.volume || '...'}</span>
                 </div>
             </div>
         </div>
