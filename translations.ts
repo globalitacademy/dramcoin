@@ -89,6 +89,8 @@ export const translations = {
       total: 'Ընդհանուր',
       login_msg: 'Առևտրի համար խնդրում ենք մուտք գործել',
       order_book: 'Պատվերների Գիրք',
+      recent_orders: 'Վերջին Պատվերները',
+      type: 'Տեսակ',
     },
     wallet: {
       total_balance: 'Ընդհանուր մնացորդ',
@@ -216,6 +218,8 @@ export const translations = {
       total: 'Total',
       login_msg: 'Please login to trade',
       order_book: 'Order Book',
+      recent_orders: 'Recent Orders',
+      type: 'Type',
     },
     wallet: {
       total_balance: 'Total Balance',

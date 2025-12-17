@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { User, CoinData, Language, Transaction, ViewState, SystemSettings } from '../types';
+import { User, CoinData, Language, Transaction, ViewState, SystemSettings, Asset } from '../types';
 
 interface StoreContextType {
   user: User;
@@ -51,7 +51,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     transactions: []
   });
 
-  // Mock data for Admin panel
   const [allUsers, setAllUsers] = useState<User[]>([
     {
       name: 'Արմեն Սարգսյան',
@@ -137,14 +136,119 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const executeTrade = (type: 'buy' | 'sell', symbol: string, amount: number, price: number) => {
     if (!user.isLoggedIn) return { success: false, message: 'Please log in' };
-    const totalCost = amount * price;
-    let newAssets = [...user.assets];
-    // Simple logic for mock
-    return { success: true, message: 'Success' };
+    
+    const totalValue = amount * price;
+    const fee = totalValue * (systemSettings.platformFee / 100);
+    
+    let updatedAssets = user.assets.map(a => ({ ...a }));
+    const usdtAsset = updatedAssets.find(a => a.symbol === 'USDT');
+    const coinAsset = updatedAssets.find(a => a.symbol === symbol);
+
+    if (type === 'buy') {
+      const cost = totalValue + fee;
+      if (!usdtAsset || usdtAsset.amount < cost) {
+        return { success: false, message: 'Insufficient USDT balance' };
+      }
+      usdtAsset.amount -= cost;
+      if (coinAsset) {
+        coinAsset.amount += amount;
+      } else {
+        updatedAssets.push({ symbol, amount, valueUsd: 0 });
+      }
+    } else {
+      if (!coinAsset || coinAsset.amount < amount) {
+        return { success: false, message: `Insufficient ${symbol} balance` };
+      }
+      coinAsset.amount -= amount;
+      const proceeds = totalValue - fee;
+      if (usdtAsset) {
+        usdtAsset.amount += proceeds;
+      } else {
+        updatedAssets.push({ symbol: 'USDT', amount: proceeds, valueUsd: proceeds });
+      }
+    }
+
+    const newTx: Transaction = {
+      id: Math.random().toString(36).substr(2, 9),
+      type,
+      symbol,
+      amount,
+      date: new Date().toISOString(),
+      status: 'completed'
+    };
+
+    setUser(prev => ({
+      ...prev,
+      assets: updatedAssets,
+      transactions: [newTx, ...prev.transactions]
+    }));
+
+    return { 
+      success: true, 
+      message: `${language === 'AM' ? (type === 'buy' ? 'Գնումը' : 'Վաճառքը') : (type === 'buy' ? 'Buy' : 'Sell')} ${amount} ${symbol} ${language === 'AM' ? 'հաջողվեց:' : 'successful.'}` 
+    };
   };
 
-  const deposit = (symbol: string, amount: number) => {};
-  const transfer = (symbol: string, amount: number) => ({ success: true });
+  const deposit = (symbol: string, amount: number) => {
+    if (!user.isLoggedIn) return;
+    
+    setUser(prev => {
+      const updatedAssets = prev.assets.map(a => ({ ...a }));
+      const asset = updatedAssets.find(a => a.symbol === symbol);
+      if (asset) {
+        asset.amount += amount;
+      } else {
+        updatedAssets.push({ symbol, amount, valueUsd: 0 });
+      }
+
+      const newTx: Transaction = {
+        id: Math.random().toString(36).substr(2, 9),
+        type: 'deposit',
+        symbol,
+        amount,
+        date: new Date().toISOString(),
+        status: 'completed'
+      };
+
+      return {
+        ...prev,
+        assets: updatedAssets,
+        transactions: [newTx, ...prev.transactions]
+      };
+    });
+  };
+
+  const transfer = (symbol: string, amount: number) => {
+    if (!user.isLoggedIn) return { success: false };
+    
+    const asset = user.assets.find(a => a.symbol === symbol);
+    if (!asset || asset.amount < amount) {
+      return { success: false, message: 'Insufficient funds' };
+    }
+
+    setUser(prev => {
+      const updatedAssets = prev.assets.map(a => ({ ...a }));
+      const targetAsset = updatedAssets.find(a => a.symbol === symbol);
+      if (targetAsset) targetAsset.amount -= amount;
+
+      const newTx: Transaction = {
+        id: Math.random().toString(36).substr(2, 9),
+        type: 'withdrawal',
+        symbol,
+        amount,
+        date: new Date().toISOString(),
+        status: 'completed'
+      };
+
+      return {
+        ...prev,
+        assets: updatedAssets,
+        transactions: [newTx, ...prev.transactions]
+      };
+    });
+
+    return { success: true };
+  };
 
   return (
     <StoreContext.Provider value={{ 

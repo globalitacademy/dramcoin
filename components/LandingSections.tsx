@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Shield, Zap, Percent, ArrowRight, CheckCircle, Twitter, Linkedin, Github } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useStore } from '../context/StoreContext';
@@ -217,6 +217,8 @@ export const TokenomicsSection: React.FC = () => {
 export const RoadmapSection: React.FC = () => {
     const { language } = useStore();
     const t = translations[language].roadmap;
+    const [isVisible, setIsVisible] = useState(false);
+    const sectionRef = useRef<HTMLDivElement>(null);
 
     const phases = [
         { phase: "Phase 1", title: t.p1, date: "Q1 2024", status: "completed" },
@@ -225,41 +227,75 @@ export const RoadmapSection: React.FC = () => {
         { phase: "Phase 4", title: t.p4, date: "Q4 2024", status: "upcoming" },
     ];
 
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setIsVisible(true);
+                    observer.disconnect();
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (sectionRef.current) {
+            observer.observe(sectionRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, []);
+
     return (
-        <section id="roadmap" className="py-20 bg-binance-black">
+        <section id="roadmap" className="py-20 bg-binance-black overflow-hidden" ref={sectionRef}>
             <div className="container mx-auto px-4">
-                <div className="text-center mb-16">
+                <div className={`text-center mb-16 transition-all duration-700 transform ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
                     <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">{t.title}</h2>
                     <div className="w-20 h-1 bg-binance-yellow mx-auto"></div>
                 </div>
 
                 <div className="relative max-w-4xl mx-auto">
-                    {/* Vertical Line */}
-                    <div className="absolute left-[19px] md:left-1/2 top-0 bottom-0 w-1 bg-binance-gray transform md:-translate-x-1/2"></div>
+                    {/* Vertical Background Line */}
+                    <div className="absolute left-[19px] md:left-1/2 top-0 bottom-0 w-1 bg-binance-gray/30 transform md:-translate-x-1/2"></div>
+                    
+                    {/* Vertical Progress Line */}
+                    <div 
+                        className="absolute left-[19px] md:left-1/2 top-0 w-1 bg-gradient-to-b from-binance-yellow via-binance-green to-binance-gray/30 transform md:-translate-x-1/2 transition-all duration-[2000ms] ease-out origin-top"
+                        style={{ height: isVisible ? '100%' : '0%', scaleY: isVisible ? 1 : 0 }}
+                    ></div>
 
                     <div className="space-y-12">
                         {phases.map((item, idx) => (
-                            <div key={idx} className={`relative flex flex-col md:flex-row gap-8 ${idx % 2 === 0 ? 'md:flex-row-reverse' : ''}`}>
+                            <div 
+                                key={idx} 
+                                className={`relative flex flex-col md:flex-row gap-8 transition-all duration-700 transform ${
+                                    idx % 2 === 0 ? 'md:flex-row-reverse' : ''
+                                } ${isVisible ? 'opacity-100 translate-x-0' : (idx % 2 === 0 ? 'opacity-0 translate-x-20' : 'opacity-0 -translate-x-20')}`}
+                                style={{ transitionDelay: `${400 + (idx * 300)}ms` }}
+                            >
                                 <div className="hidden md:block flex-1"></div>
                                 
                                 {/* Timeline Dot */}
-                                <div className={`absolute left-0 md:left-1/2 transform md:-translate-x-1/2 w-10 h-10 rounded-full border-4 flex items-center justify-center z-10 ${
+                                <div className={`absolute left-0 md:left-1/2 transform md:-translate-x-1/2 w-10 h-10 rounded-full border-4 flex items-center justify-center z-10 transition-all duration-500 delay-[${800 + (idx * 300)}ms] ${
                                     item.status === 'completed' ? 'bg-binance-green border-binance-black text-black' : 
                                     item.status === 'active' ? 'bg-binance-yellow border-binance-yellow text-black animate-pulse' : 
                                     'bg-binance-black border-binance-gray text-binance-subtext'
-                                }`}>
+                                } ${isVisible ? 'scale-100' : 'scale-0'}`}>
                                     {item.status === 'completed' ? <CheckCircle size={20} /> : <div className="w-3 h-3 bg-current rounded-full"></div>}
                                 </div>
 
                                 <div className="flex-1 ml-12 md:ml-0">
-                                    <div className={`p-6 bg-[#1e2026] rounded-xl border ${item.status === 'active' ? 'border-binance-yellow' : 'border-binance-gray'}`}>
+                                    <div className={`p-6 bg-[#1e2026] rounded-xl border transition-all duration-500 hover:shadow-[0_0_20px_rgba(252,213,53,0.1)] group ${item.status === 'active' ? 'border-binance-yellow shadow-[0_0_15px_rgba(252,213,53,0.1)]' : 'border-binance-gray'}`}>
                                         <div className="flex justify-between items-start mb-2">
-                                            <span className={`text-xs font-bold uppercase px-2 py-1 rounded ${
+                                            <span className={`text-xs font-bold uppercase px-2 py-1 rounded transition-colors ${
                                                 item.status === 'active' ? 'bg-binance-yellow text-black' : 'bg-binance-gray text-binance-subtext'
                                             }`}>{item.phase}</span>
-                                            <span className="text-sm text-binance-subtext">{item.date}</span>
+                                            <span className="text-sm text-binance-subtext font-mono">{item.date}</span>
                                         </div>
-                                        <h3 className="text-xl font-bold text-white">{item.title}</h3>
+                                        <h3 className="text-xl font-bold text-white group-hover:text-binance-yellow transition-colors">{item.title}</h3>
+                                        <div className="mt-2 text-sm text-binance-subtext flex items-center gap-1">
+                                            {item.status === 'completed' && <span className="flex items-center gap-1 text-binance-green text-xs font-bold"><CheckCircle size={12} /> COMPLETED</span>}
+                                            {item.status === 'active' && <span className="flex items-center gap-1 text-binance-yellow text-xs font-bold animate-pulse"><Zap size={12} /> IN PROGRESS</span>}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
