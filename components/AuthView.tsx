@@ -22,9 +22,6 @@ const AuthView: React.FC = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // If user becomes logged in while on this view, the context should have redirected them, 
-  // but we can add a local check too.
-
   const handleGoogleLogin = async () => {
     setIsLoading(true);
     setError('');
@@ -39,7 +36,6 @@ const AuthView: React.FC = () => {
           setError(result.message || (language === 'AM' ? 'Google-ով մուտքը ձախողվեց:' : 'Google login failed.'));
         }
       }
-      // Note: If successful, the page will redirect to Google's consent screen.
     } catch (err: any) {
       setError(err.message || 'OAuth Error');
     } finally {
@@ -276,6 +272,17 @@ const AuthView: React.FC = () => {
                         />
                     </div>
                     {renderStrengthMeter()}
+                </div>
+                <div className="space-y-1">
+                    <label className="text-xs text-binance-subtext ml-1 uppercase font-bold tracking-wider">{t.confirm_password}</label>
+                    <div className="relative">
+                        <Lock className="absolute left-3 top-3.5 text-binance-subtext" size={18} />
+                        <input 
+                            type={showPass ? 'text' : 'password'} required
+                            value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                            className="w-full bg-binance-dark border border-binance-gray rounded-xl py-3 pl-10 pr-4 text-white focus:border-binance-yellow focus:outline-none"
+                        />
+                    </div>
                 </div>
                 <button 
                     disabled={isLoading}
