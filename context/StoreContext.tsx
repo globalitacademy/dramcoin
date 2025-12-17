@@ -87,9 +87,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           await syncUserData(session.user.id, session.user.email || session.user.phone || '');
-          if (window.location.search.includes('access_token') || window.location.hash.includes('access_token')) {
-             setView(ViewState.HOME);
-          }
         }
       } catch (err) {
         console.error("Auth init error:", err);
@@ -115,22 +112,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const syncUserData = async (userId: string, contact: string) => {
     try {
-      // 1. Ensure profile exists
-      let { data: profile, error: pError } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+      // 1. Fetch profile
+      let { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
       
+      // If profile doesn't exist, try to create it, but don't crash if RLS fails
       if (!profile) {
-        const { data: newProfile, error: createError } = await supabase.from('profiles').upsert([{ 
+        const { data: newProfile, error: createError } = await supabase.from('profiles').insert([{ 
           id: userId, 
           username: contact.split('@')[0] || 'User', 
           kyc_status: 'unverified' 
-        }], { onConflict: 'id' }).select().single();
+        }]).select().maybeSingle();
         
-        if (createError) throw new Error(`Profile creation failed: ${createError.message}`);
-        profile = newProfile;
+        if (createError) {
+          console.warn("RLS restriction on profiles table:", createError.message);
+          // Fallback to local profile object
+          profile = { id: userId, username: contact.split('@')[0] || 'User', kyc_status: 'unverified' };
+        } else {
+          profile = newProfile;
+        }
       }
 
-      // 2. Ensure assets exist
-      let { data: assets, error: aError } = await supabase.from('assets').select('*').eq('user_id', userId);
+      // 2. Fetch or initialize assets
+      let { data: assets } = await supabase.from('assets').select('*').eq('user_id', userId);
       
       if (!assets || assets.length === 0) {
         const initialAssets = [
@@ -138,11 +141,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           { user_id: userId, symbol: 'BTC', amount: 0 },
           { user_id: userId, symbol: 'DMC', amount: 0 }
         ];
-        const { error: insertAssetsError } = await supabase.from('assets').insert(initialAssets);
-        if (insertAssetsError) console.warn("Initial assets insert failed, might already exist.");
+        const { error: assetError } = await supabase.from('assets').insert(initialAssets);
+        if (assetError) console.warn("RLS restriction on assets table:", assetError.message);
         
         const { data: freshAssets } = await supabase.from('assets').select('*').eq('user_id', userId);
-        assets = freshAssets;
+        assets = freshAssets || initialAssets.map(a => ({ symbol: a.symbol, amount: a.amount }));
       }
 
       // 3. Fetch transactions
@@ -177,8 +180,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         transactions: formattedTxs 
       });
     } catch (err: any) {
-      console.error("Database Sync Error:", err.message || err);
-      throw err; // Re-throw to be caught by register/login
+      console.error("Sync Error Details:", err);
+      // Even if everything fails, we ensure the user can at least enter as a basic logged in user
+      setUser(prev => ({ ...prev, email: contact, isLoggedIn: true }));
     }
   };
 
@@ -240,15 +244,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       if (error) return { success: false, message: error.message };
       
-      if (data.user) {
-        // Must wait for sync to finish before moving to the next view
+      // If session is null, email confirmation is likely enabled in Supabase
+      if (data.user && !data.session) {
+        return { 
+          success: true, 
+          message: language === 'AM' ? 'Գրանցումը հաջողվեց։ Խնդրում ենք ստուգել Ձեր էլ. փոստը՝ հաստատման հղման համար։' : 'Registration successful! Please check your email for the confirmation link.' 
+        };
+      }
+
+      if (data.user && data.session) {
         await syncUserData(data.user.id, email);
         setView(ViewState.VERIFY);
         return { success: true };
       }
-      return { success: false, message: 'Registration failed: No user returned' };
+      return { success: false, message: 'Registration failed' };
     } catch (err: any) {
-      return { success: false, message: err.message || 'Registration synchronization failed' };
+      return { success: false, message: err.message || 'System error' };
     }
   };
 

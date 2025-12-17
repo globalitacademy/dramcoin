@@ -83,7 +83,7 @@ const AuthView: React.FC = () => {
     setSuccess('');
     const result = await login(email, password);
     if (!result.success) {
-        setError(language === 'AM' ? 'Մուտքի տվյալները սխալ են' : 'Invalid login credentials');
+        setError(result.message || (language === 'AM' ? 'Մուտքի տվյալները սխալ են' : 'Invalid login credentials'));
     }
     setIsLoading(false);
   };
@@ -102,13 +102,17 @@ const AuthView: React.FC = () => {
     const result = await register(username, email, password);
     
     if (result.success) {
-        setSuccess(language === 'AM' 
+        setSuccess(result.message || (language === 'AM' 
             ? 'Գրանցումը հաջողվեց։ Տեղափոխում ենք հաստատման էջ...' 
-            : 'Registration successful! Redirecting to verification...');
+            : 'Registration successful! Redirecting to verification...'));
+        // If message contains confirmation info, don't automatically redirect
+        if (result.message?.includes('email') || result.message?.includes('փոստ')) {
+           setIsLoading(false);
+        }
     } else {
         setError(result.message || (language === 'AM' ? 'Գրանցումը ձախողվեց' : 'Registration failed'));
+        setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const renderStrengthMeter = () => (
@@ -129,7 +133,7 @@ const AuthView: React.FC = () => {
       
       <div className="w-full max-w-md bg-binance-black border border-binance-gray rounded-3xl p-8 shadow-2xl animate-fade-in z-10">
         
-        {step !== 'login' && (
+        {step !== 'login' && !success && (
             <button onClick={() => setStep('login')} className="mb-6 text-binance-subtext hover:text-white flex items-center gap-1 text-sm transition-colors">
                 <ArrowLeft size={16} /> {language === 'AM' ? 'Հետ' : 'Back'}
             </button>
@@ -151,12 +155,16 @@ const AuthView: React.FC = () => {
         )}
 
         {success && (
-            <div className="bg-binance-green/10 border border-binance-green/30 text-binance-green p-3 rounded-xl text-xs flex items-center gap-2 mb-6 animate-fade-in">
-                <CheckCircle size={16} /> {success}
+            <div className="bg-binance-green/10 border border-binance-green/30 text-binance-green p-4 rounded-xl text-sm flex flex-col items-center gap-3 mb-6 animate-fade-in text-center">
+                <CheckCircle size={24} />
+                <p>{success}</p>
+                {(success.includes('email') || success.includes('փոստ')) && (
+                  <button onClick={() => { setSuccess(''); setStep('login'); }} className="text-xs underline font-bold">Վերադառնալ մուտքի էջ</button>
+                )}
             </div>
         )}
 
-        {step === 'login' && (
+        {!success && step === 'login' && (
             <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-1">
                     <label className="text-xs text-binance-subtext ml-1 uppercase font-bold tracking-wider">{t.email}</label>
@@ -226,7 +234,7 @@ const AuthView: React.FC = () => {
             </form>
         )}
 
-        {step === 'register' && (
+        {!success && step === 'register' && (
             <form onSubmit={handleRegister} className="space-y-4">
                 <div className="space-y-1">
                     <label className="text-xs text-binance-subtext ml-1 uppercase font-bold tracking-wider">{t.username}</label>
@@ -287,7 +295,7 @@ const AuthView: React.FC = () => {
             </form>
         )}
 
-        {step === 'verify' && (
+        {!success && step === 'verify' && (
             <div className="space-y-6">
                 <p className="text-center text-binance-subtext text-sm">{t.verify_desc}</p>
                 <form onSubmit={handleOtpVerify} className="space-y-4">
