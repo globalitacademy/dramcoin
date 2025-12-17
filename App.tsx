@@ -6,6 +6,8 @@ import TradingView from './components/TradingView';
 import AIAssistant from './components/AIAssistant';
 import WalletView from './components/WalletView';
 import AdminDashboard from './components/AdminDashboard';
+import AdminLogin from './components/AdminLogin';
+import AuthView from './components/AuthView';
 import Footer from './components/Footer';
 import { HeroSection, FeaturesSection, TokenomicsSection, RoadmapSection, CalculatorSection, TeamSection } from './components/LandingSections';
 import { ViewState } from './types';
@@ -13,13 +15,15 @@ import { StoreProvider, useStore } from './context/StoreContext';
 import { translations } from './translations';
 
 const AppContent: React.FC = () => {
-  const { language, setSelectedSymbol, currentView, setView, user } = useStore();
+  const { language, setSelectedSymbol, currentView, setView, user, isAdminAuthenticated } = useStore();
   const t = translations[language].market;
 
   const renderView = () => {
     switch(currentView) {
+      case ViewState.AUTH:
+        return <AuthView />;
       case ViewState.ADMIN:
-        return user.isAdmin ? <AdminDashboard /> : <div className="pt-20 text-center">Մուտքն արգելված է:</div>;
+        return isAdminAuthenticated ? <AdminDashboard /> : <AdminLogin />;
       case ViewState.TRADE:
         return (
           <div className="min-h-screen pt-[72px]">
@@ -64,15 +68,17 @@ const AppContent: React.FC = () => {
     }
   };
 
+  const showNavbar = currentView !== ViewState.ADMIN && currentView !== ViewState.AUTH;
+
   return (
     <div className="min-h-screen bg-[#181a20] text-[#eaecef] font-sans">
-      <Navbar />
+      {showNavbar && <Navbar />}
       
       <main>
         {renderView()}
       </main>
 
-      <AIAssistant />
+      {showNavbar && <AIAssistant />}
     </div>
   );
 };

@@ -1,17 +1,18 @@
+
 import { GoogleGenAI } from "@google/genai";
 
-const apiKey = process.env.API_KEY || '';
-
-// Initialize only if key exists to avoid immediate errors, handle gracefully in calls
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
-
+/**
+ * Provides market analysis using the Gemini AI model.
+ * Adheres to Google GenAI SDK guidelines for initialization and model selection.
+ */
 export const getMarketAnalysis = async (query: string, marketContext: string): Promise<string> => {
-  if (!ai) {
-    return "API Key is missing. Please configure process.env.API_KEY.";
-  }
+  // Create a new GoogleGenAI instance right before making an API call to ensure it always uses the most up-to-date API key.
+  // The API key is obtained exclusively from process.env.API_KEY.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
   try {
-    const model = 'gemini-2.5-flash';
+    // Select gemini-3-flash-preview for basic text tasks (summarization/analysis) as recommended.
+    const model = 'gemini-3-flash-preview';
     const systemInstruction = `You are an expert cryptocurrency market analyst for a platform called DramCoin. 
     You speak Armenian (primary) and English. 
     Provide concise, professional technical analysis or answers about crypto trading. 
@@ -27,6 +28,7 @@ export const getMarketAnalysis = async (query: string, marketContext: string): P
       }
     });
 
+    // Access the generated text directly from the response.text property.
     return response.text || "Ներեցեք, ես չկարողացա վերլուծել տվյալները:";
   } catch (error) {
     console.error("Gemini API Error:", error);

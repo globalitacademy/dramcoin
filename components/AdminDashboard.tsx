@@ -12,18 +12,20 @@ import {
   ArrowDownLeft, 
   Activity,
   Save,
-  Trash2,
+  LogOut,
   TrendingDown,
   Zap,
   RefreshCw,
   Plus
 } from 'lucide-react';
 import { ViewState } from '../types';
+import { translations } from '../translations';
 
 const AdminDashboard: React.FC = () => {
-  const { allUsers, marketData, systemSettings, updateSettings, executeTrade, setView } = useStore();
+  const { allUsers, marketData, systemSettings, updateSettings, executeTrade, manipulatePrice, adminLogout, language } = useStore();
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'transactions' | 'settings' | 'trading'>('overview');
   const [tempSettings, setTempSettings] = useState(systemSettings);
+  const t = translations[language].admin;
 
   // Admin Trading State
   const [adminTradeAmount, setAdminTradeAmount] = useState('');
@@ -42,8 +44,22 @@ const AdminDashboard: React.FC = () => {
     const price = parseFloat(adminTradePrice) || (marketData.find(c => c.symbol === selectedSymbol)?.price || 0);
     
     if (amount > 0) {
+      executeTrade(type, selectedSymbol, amount, price);
       alert(`Համակարգային գործարք կատարված է: ${type === 'buy' ? 'Գնում' : 'Վաճառք'} ${amount} ${selectedSymbol}`);
       setAdminTradeAmount('');
+    }
+  };
+
+  const handleManipulation = (type: 'pump' | 'dump' | 'reset') => {
+    const symbol = 'DMC';
+    if (type === 'pump') {
+      manipulatePrice(symbol, 15);
+      executeTrade('buy', symbol, 10000, marketData.find(c => c.symbol === symbol)?.price || 0.5);
+    } else if (type === 'dump') {
+      manipulatePrice(symbol, -15);
+      executeTrade('sell', symbol, 10000, marketData.find(c => c.symbol === symbol)?.price || 0.5);
+    } else {
+      manipulatePrice(symbol, 0);
     }
   };
 
@@ -132,13 +148,11 @@ const AdminDashboard: React.FC = () => {
       case 'trading':
         return (
           <div className="grid lg:grid-cols-2 gap-8 animate-fade-in">
-             {/* Platform Trading Control */}
              <div className="bg-binance-black border border-binance-gray rounded-xl p-8">
                 <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
                   <Zap size={22} className="text-binance-yellow" /> Հարթակի Առևտուր (Market Making)
                 </h3>
                 <p className="text-sm text-binance-subtext mb-6">Այստեղից կարող եք կառավարել հարթակի պահուստները և կատարել համակարգային գործարքներ։</p>
-                
                 <div className="space-y-4">
                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -162,7 +176,6 @@ const AdminDashboard: React.FC = () => {
                         />
                       </div>
                    </div>
-
                    <div className="space-y-2">
                       <label className="text-xs text-binance-subtext">Գին (թողնել դատարկ շուկայականի համար)</label>
                       <input 
@@ -173,7 +186,6 @@ const AdminDashboard: React.FC = () => {
                         className="w-full bg-binance-dark border border-binance-gray rounded-lg p-3 text-white focus:outline-none focus:border-binance-yellow"
                       />
                    </div>
-
                    <div className="grid grid-cols-2 gap-4 pt-4">
                       <button 
                         onClick={() => handleAdminTrade('buy')}
@@ -190,8 +202,6 @@ const AdminDashboard: React.FC = () => {
                    </div>
                 </div>
              </div>
-
-             {/* Market Control Tools */}
              <div className="bg-binance-black border border-binance-gray rounded-xl p-8">
                 <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
                   <TrendingUp size={22} className="text-binance-yellow" /> DMC Շուկայի Վերահսկողություն
@@ -202,16 +212,24 @@ const AdminDashboard: React.FC = () => {
                       <span className="text-xl font-bold text-binance-yellow">${marketData.find(c => c.symbol === 'DMC')?.price.toFixed(4)}</span>
                    </div>
                 </div>
-
                 <div className="space-y-4">
                    <p className="text-sm text-binance-subtext">Ակնթարթային Գործողություններ:</p>
-                   <button className="w-full py-3 bg-binance-green/20 border border-binance-green text-binance-green rounded-lg font-bold hover:bg-binance-green hover:text-black transition-all flex items-center justify-center gap-2">
+                   <button 
+                      onClick={() => handleManipulation('pump')}
+                      className="w-full py-3 bg-binance-green/20 border border-binance-green text-binance-green rounded-lg font-bold hover:bg-binance-green hover:text-black transition-all flex items-center justify-center gap-2"
+                    >
                       <ArrowUpRight size={18} /> DMC Pump (+15%)
                    </button>
-                   <button className="w-full py-3 bg-binance-red/20 border border-binance-red text-binance-red rounded-lg font-bold hover:bg-binance-red hover:text-white transition-all flex items-center justify-center gap-2">
+                   <button 
+                      onClick={() => handleManipulation('dump')}
+                      className="w-full py-3 bg-binance-red/20 border border-binance-red text-binance-red rounded-lg font-bold hover:bg-binance-red hover:text-white transition-all flex items-center justify-center gap-2"
+                    >
                       <ArrowDownLeft size={18} /> DMC Dump (-15%)
                    </button>
-                   <button className="w-full py-3 bg-binance-gray hover:bg-gray-700 text-white rounded-lg font-bold transition-all flex items-center justify-center gap-2">
+                   <button 
+                      onClick={() => handleManipulation('reset')}
+                      className="w-full py-3 bg-binance-gray hover:bg-gray-700 text-white rounded-lg font-bold transition-all flex items-center justify-center gap-2"
+                    >
                       <RefreshCw size={18} /> Վերականգնել Շուկայական Գինը
                    </button>
                 </div>
@@ -273,7 +291,6 @@ const AdminDashboard: React.FC = () => {
       default:
         return (
           <div className="space-y-8 animate-fade-in">
-            {/* Stats Grid */}
             <div className="grid md:grid-cols-4 gap-4">
               {stats.map((s, i) => (
                 <div key={i} className="bg-binance-black border border-binance-gray p-6 rounded-xl hover:border-binance-yellow/50 transition-colors">
@@ -286,8 +303,6 @@ const AdminDashboard: React.FC = () => {
                 </div>
               ))}
             </div>
-
-            {/* Platform Health Section */}
             <div className="grid lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 bg-binance-black border border-binance-gray rounded-xl p-6">
                 <h3 className="font-bold mb-6 flex items-center gap-2"><BarChart3 size={18} className="text-binance-yellow" /> Հարթակի Ակտիվություն (24ժ)</h3>
@@ -311,14 +326,13 @@ const AdminDashboard: React.FC = () => {
                       <Plus size={16} className="text-binance-subtext" />
                    </button>
                    <button 
-                     onClick={() => setView(ViewState.TRADE)}
-                     className="w-full flex items-center justify-between p-4 bg-binance-gray/20 rounded-xl hover:bg-binance-gray/40 transition-all border border-transparent hover:border-binance-yellow/30"
+                     onClick={adminLogout}
+                     className="w-full flex items-center justify-between p-4 bg-binance-red/10 rounded-xl hover:bg-binance-red/20 transition-all border border-transparent hover:border-binance-red/30"
                    >
                       <div className="flex items-center gap-3">
-                         <Activity size={18} className="text-blue-500" />
-                         <span className="text-sm font-bold">Դիտել Շուկան</span>
+                         <LogOut size={18} className="text-binance-red" />
+                         <span className="text-sm font-bold text-binance-red">{t.logout}</span>
                       </div>
-                      <ArrowUpRight size={16} className="text-binance-subtext" />
                    </button>
                 </div>
               </div>
@@ -330,7 +344,6 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-[#0b0e11] pt-16">
-      {/* Admin Sidebar */}
       <aside className="w-64 bg-binance-black border-r border-binance-gray p-4 hidden md:block">
         <div className="flex items-center gap-3 p-4 mb-8 bg-binance-gray/20 rounded-xl">
            <div className="w-10 h-10 rounded-full bg-binance-yellow flex items-center justify-center text-black shadow-lg"><ShieldCheck size={24} /></div>
@@ -370,10 +383,16 @@ const AdminDashboard: React.FC = () => {
           >
             <Settings size={18} /> Կարգավորումներ
           </button>
+          <div className="pt-8">
+            <button 
+              onClick={adminLogout}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-binance-red hover:bg-binance-red/10 transition-colors"
+            >
+              <LogOut size={18} /> {t.logout}
+            </button>
+          </div>
         </nav>
       </aside>
-
-      {/* Main Admin Area */}
       <main className="flex-1 p-8 overflow-y-auto">
         <header className="flex justify-between items-center mb-8">
           <h2 className="text-2xl font-bold text-white flex items-center gap-3">
@@ -391,7 +410,6 @@ const AdminDashboard: React.FC = () => {
              <div className="w-10 h-10 rounded-full bg-binance-gray flex items-center justify-center text-binance-yellow"><Activity size={20} /></div>
           </div>
         </header>
-
         {renderContent()}
       </main>
     </div>

@@ -2,11 +2,11 @@
 import React, { useState } from 'react';
 import { ViewState } from '../types';
 import { useStore } from '../context/StoreContext';
-import { Menu, Globe, Wallet, LogOut, X, ChevronDown, ShieldCheck } from 'lucide-react';
+import { Menu, Globe, Wallet, LogOut, X, ChevronDown, User as UserIcon } from 'lucide-react';
 import { translations } from '../translations';
 
 const Navbar: React.FC = () => {
-  const { user, login, logout, language, setLanguage, setView } = useStore();
+  const { user, logout, language, setLanguage, setView } = useStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const t = translations[language].nav;
@@ -61,11 +61,6 @@ const Navbar: React.FC = () => {
           <div className="h-4 w-px bg-binance-gray mx-2"></div>
           <button onClick={() => setView(ViewState.MARKETS)} className="text-sm font-medium text-white hover:text-binance-yellow">{t.markets}</button>
           <button onClick={() => setView(ViewState.TRADE)} className="text-sm font-medium text-white hover:text-binance-yellow">{t.trade}</button>
-          {user.isAdmin && (
-            <button onClick={() => setView(ViewState.ADMIN)} className="text-sm font-bold text-binance-yellow hover:text-white flex items-center gap-1">
-              <ShieldCheck size={16} /> ՎԱՀԱՆԱԿ
-            </button>
-          )}
         </div>
 
         {/* Right Actions */}
@@ -83,19 +78,25 @@ const Navbar: React.FC = () => {
           </div>
 
           {!user.isLoggedIn ? (
-            <button 
-              onClick={login}
-              className="bg-gradient-to-r from-binance-yellow to-[#fbc02d] text-black px-6 py-2 rounded-full font-bold text-sm hover:shadow-[0_0_15px_rgba(252,213,53,0.3)] transition-all flex items-center gap-2"
-            >
-              <Wallet size={16} />
-              {t.connectWallet}
-            </button>
+            <div className="flex items-center gap-3">
+                <button onClick={() => setView(ViewState.AUTH)} className="text-sm font-bold text-white hover:text-binance-yellow px-2">{t.login}</button>
+                <button 
+                  onClick={() => setView(ViewState.AUTH)}
+                  className="bg-gradient-to-r from-binance-yellow to-[#fbc02d] text-black px-6 py-2 rounded-lg font-bold text-sm hover:shadow-[0_0_15px_rgba(252,213,53,0.3)] transition-all"
+                >
+                  {t.register}
+                </button>
+            </div>
           ) : (
             <div className="flex items-center gap-3">
-               <button onClick={() => setView(ViewState.WALLET)} className="text-white hover:text-binance-yellow font-medium">
-                 {user.name}
+               <button 
+                onClick={() => setView(ViewState.WALLET)} 
+                className="flex items-center gap-2 bg-binance-gray/50 border border-binance-gray hover:border-binance-yellow px-4 py-2 rounded-xl transition-all"
+               >
+                 <UserIcon size={16} className="text-binance-yellow" />
+                 <span className="text-sm font-bold text-white">{user.username}</span>
                </button>
-               <button onClick={logout} className="text-binance-subtext hover:text-binance-red">
+               <button onClick={logout} className="text-binance-subtext hover:text-binance-red p-2">
                   <LogOut size={18} />
                </button>
             </div>
@@ -118,9 +119,6 @@ const Navbar: React.FC = () => {
               {link.name}
             </button>
           ))}
-          {user.isAdmin && (
-            <button onClick={() => handleNavClick(ViewState.ADMIN)} className="text-left font-bold text-binance-yellow py-2">Կառավարման Վահանակ</button>
-          )}
           <div className="h-px w-full bg-binance-gray"></div>
           <button onClick={() => handleNavClick(ViewState.MARKETS)} className="text-left font-medium text-white py-2">{t.markets}</button>
           <button onClick={() => handleNavClick(ViewState.TRADE)} className="text-left font-medium text-white py-2">{t.trade}</button>
@@ -131,8 +129,8 @@ const Navbar: React.FC = () => {
                 <button onClick={() => setLanguage('EN')} className={`text-sm ${language === 'EN' ? 'text-binance-yellow' : 'text-white'}`}>EN</button>
              </div>
              {!user.isLoggedIn ? (
-                <button onClick={login} className="bg-binance-yellow text-black px-4 py-2 rounded font-medium text-sm">
-                  {t.connectWallet}
+                <button onClick={() => setView(ViewState.AUTH)} className="bg-binance-yellow text-black px-4 py-2 rounded font-medium text-sm">
+                  {t.login}
                 </button>
              ) : (
                 <button onClick={logout} className="text-binance-red font-medium text-sm">{t.logout}</button>

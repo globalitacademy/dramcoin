@@ -26,7 +26,9 @@ export enum ViewState {
   MARKETS = 'MARKETS',
   TRADE = 'TRADE',
   WALLET = 'WALLET',
-  ADMIN = 'ADMIN'
+  ADMIN = 'ADMIN',
+  AUTH = 'AUTH',
+  PROFILE = 'PROFILE'
 }
 
 export interface ChatMessage {
@@ -50,12 +52,15 @@ export interface Transaction {
 }
 
 export interface User {
-  name: string;
+  username: string;
   email: string;
   isLoggedIn: boolean;
   isAdmin?: boolean;
+  kycStatus: 'unverified' | 'pending' | 'verified';
+  twoFactorEnabled: boolean;
   assets: Asset[];
   transactions: Transaction[];
+  lastLogin?: string;
 }
 
 export interface SystemSettings {
