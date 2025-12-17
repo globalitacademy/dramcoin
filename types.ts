@@ -28,7 +28,9 @@ export enum ViewState {
   WALLET = 'WALLET',
   ADMIN = 'ADMIN',
   AUTH = 'AUTH',
-  PROFILE = 'PROFILE'
+  PROFILE = 'PROFILE',
+  VERIFY = 'VERIFY',
+  WHITEPAPER = 'WHITEPAPER'
 }
 
 export interface ChatMessage {

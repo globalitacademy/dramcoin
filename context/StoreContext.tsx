@@ -10,14 +10,17 @@ interface StoreContextType {
   isAdminAuthenticated: boolean;
   login: (email: string, pass: string) => { success: boolean; message?: string };
   register: (username: string, email: string, pass: string) => { success: boolean; message?: string };
+  loginWithGoogle: (email: string, name: string) => void;
   logout: () => void;
   adminLogin: (user: string, pass: string) => boolean;
   adminLogout: () => void;
+  adminVerifyKyc: (email: string, status: 'verified' | 'unverified') => void;
   executeTrade: (type: 'buy' | 'sell', symbol: string, amount: number, price: number) => { success: boolean; message: string };
   deposit: (symbol: string, amount: number) => void;
   transfer: (symbol: string, amount: number) => { success: boolean; message?: string };
   updateSettings: (settings: Partial<SystemSettings>) => void;
   manipulatePrice: (symbol: string, percentage: number) => void;
+  submitKyc: () => void;
   currentPrice: number;
   language: Language;
   setLanguage: (lang: Language) => void;
@@ -29,7 +32,6 @@ interface StoreContextType {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
-// Initial empty user state
 const INITIAL_USER: User = {
   username: 'Guest',
   email: '',
@@ -63,7 +65,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [user, setUser] = useState<User>(INITIAL_USER);
 
-  // Mock Database
   const [registeredUsers, setRegisteredUsers] = useState<User[]>([
     {
       username: 'Armen',
@@ -130,9 +131,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => wsRef.current?.close();
   }, [selectedSymbol, dmcMultiplier]);
 
-  // Auth Methods
   const login = (email: string, pass: string) => {
-    // In a real app, pass would be hashed and checked on server
     const found = registeredUsers.find(u => u.email === email);
     if (found) {
         const loggedUser = { ...found, isLoggedIn: true, lastLogin: new Date().toISOString() };
@@ -141,6 +140,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return { success: true };
     }
     return { success: false, message: 'auth.error_invalid' };
+  };
+
+  const loginWithGoogle = (email: string, name: string) => {
+    const existing = registeredUsers.find(u => u.email === email);
+    if (existing) {
+        setUser({ ...existing, isLoggedIn: true, lastLogin: new Date().toISOString() });
+    } else {
+        const newUser: User = {
+            ...INITIAL_USER,
+            username: name,
+            email: email,
+            isLoggedIn: true,
+            kycStatus: 'unverified'
+        };
+        setRegisteredUsers(prev => [...prev, newUser]);
+        setUser(newUser);
+    }
+    setView(ViewState.HOME);
   };
 
   const register = (username: string, email: string, pass: string) => {
@@ -178,6 +195,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setView(ViewState.HOME);
   };
 
+  const adminVerifyKyc = (email: string, status: 'verified' | 'unverified') => {
+    setRegisteredUsers(prev => prev.map(u => u.email === email ? { ...u, kycStatus: status } : u));
+    if (user.email === email) {
+      setUser(prev => ({ ...prev, kycStatus: status }));
+    }
+  };
+
   const updateSettings = (newSettings: Partial<SystemSettings>) => {
     setSystemSettings(prev => ({ ...prev, ...newSettings }));
   };
@@ -190,6 +214,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setDmcMultiplier(prev => prev * (1 + percentage / 100));
       }
     }
+  };
+
+  const submitKyc = () => {
+    setUser(prev => ({ ...prev, kycStatus: 'pending' }));
+    setRegisteredUsers(prev => prev.map(u => u.email === user.email ? { ...u, kycStatus: 'pending' } : u));
   };
 
   const executeTrade = (type: 'buy' | 'sell', symbol: string, amount: number, price: number) => {
@@ -241,6 +270,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           assets: updatedAssets,
           transactions: [newTx, ...prev.transactions]
         }));
+        setRegisteredUsers(prev => prev.map(u => u.email === user.email ? { ...u, assets: updatedAssets, transactions: [newTx, ...u.transactions] } : u));
     }
 
     return { 
@@ -269,6 +299,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         date: new Date().toISOString(),
         status: 'completed'
       };
+
+      setRegisteredUsers(old => old.map(u => u.email === user.email ? { ...u, assets: updatedAssets, transactions: [newTx, ...u.transactions] } : u));
 
       return {
         ...prev,
@@ -300,6 +332,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         status: 'completed'
       };
 
+      setRegisteredUsers(old => old.map(u => u.email === user.email ? { ...u, assets: updatedAssets, transactions: [newTx, ...u.transactions] } : u));
+
       return {
         ...prev,
         assets: updatedAssets,
@@ -312,7 +346,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   return (
     <StoreContext.Provider value={{ 
-        user, allUsers: registeredUsers, marketData, systemSettings, isAdminAuthenticated, login, register, logout, adminLogin, adminLogout, executeTrade, deposit, transfer, updateSettings, manipulatePrice,
+        user, allUsers: registeredUsers, marketData, systemSettings, isAdminAuthenticated, login, register, loginWithGoogle, logout, adminLogin, adminLogout, adminVerifyKyc, executeTrade, deposit, transfer, updateSettings, manipulatePrice, submitKyc,
         currentPrice, language, setLanguage, selectedSymbol, setSelectedSymbol,
         currentView, setView
     }}>

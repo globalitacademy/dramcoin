@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Shield, Zap, Percent, ArrowRight, CheckCircle, Twitter, Linkedin, Github } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
@@ -7,7 +8,7 @@ import { ViewState } from '../types';
 
 // --- Hero Section ---
 export const HeroSection: React.FC<{ onBuyClick: () => void }> = ({ onBuyClick }) => {
-  const { language } = useStore();
+  const { language, setView } = useStore();
   const t = translations[language].hero;
 
   const TickerItems = () => (
@@ -61,7 +62,10 @@ export const HeroSection: React.FC<{ onBuyClick: () => void }> = ({ onBuyClick }
             >
               {t.buy_btn}
             </button>
-            <button className="px-8 py-4 bg-binance-gray/30 border border-binance-gray text-white font-bold rounded-lg hover:bg-binance-gray/50 transition-colors backdrop-blur-sm">
+            <button 
+              onClick={() => setView(ViewState.WHITEPAPER)}
+              className="px-8 py-4 bg-binance-gray/30 border border-binance-gray text-white font-bold rounded-lg hover:bg-binance-gray/50 transition-colors backdrop-blur-sm"
+            >
               {t.whitepaper_btn}
             </button>
           </div>
@@ -118,7 +122,7 @@ export const HeroSection: React.FC<{ onBuyClick: () => void }> = ({ onBuyClick }
   );
 };
 
-// --- Features Section ---
+// ... existing code for FeaturesSection, TokenomicsSection, RoadmapSection, TeamSection, CalculatorSection ...
 export const FeaturesSection: React.FC = () => {
     const { language } = useStore();
     const t = translations[language].features;
@@ -152,7 +156,6 @@ export const FeaturesSection: React.FC = () => {
     );
 };
 
-// --- Tokenomics Section ---
 export const TokenomicsSection: React.FC = () => {
     const { language } = useStore();
     const t = translations[language].tokenomics;
@@ -213,7 +216,6 @@ export const TokenomicsSection: React.FC = () => {
     );
 };
 
-// --- Roadmap Section ---
 export const RoadmapSection: React.FC = () => {
     const { language } = useStore();
     const t = translations[language].roadmap;
@@ -307,7 +309,6 @@ export const RoadmapSection: React.FC = () => {
     );
 };
 
-// --- Team Section ---
 export const TeamSection: React.FC = () => {
     const { language } = useStore();
     const t = translations[language].teamSection;
@@ -356,24 +357,18 @@ export const TeamSection: React.FC = () => {
     );
 };
 
-// --- Calculator Section ---
 export const CalculatorSection: React.FC = () => {
     const { language, marketData, setView, setSelectedSymbol } = useStore();
     const t = translations[language].calculator;
     
-    // Initial Values
     const [payAmount, setPayAmount] = useState<string>('1000');
     const [receiveAmount, setReceiveAmount] = useState<string>('');
     const [currency, setCurrency] = useState<'USD' | 'AMD'>('USD');
     
-    // Constants
     const USD_AMD_RATE = 390;
-    
-    // Get live price of DMC from store (defaults to 200 if loading/not found)
     const dmcCoin = marketData.find(c => c.symbol === 'DMC');
     const dmcPriceUsd = dmcCoin ? dmcCoin.price : 200; 
 
-    // Bi-directional Calculation Logic
     const handlePayChange = (val: string) => {
         setPayAmount(val);
         const amount = parseFloat(val);
@@ -398,26 +393,19 @@ export const CalculatorSection: React.FC = () => {
         }
     };
 
-    // Recalculate if currency changes, keeping the DMC amount constant (logic choice)
-    // Or keep Pay amount constant? Usually user inputs "Pay", so we keep "Pay" constant but adjust visual if needed.
-    // Here we will trigger recalculation based on current payAmount when currency toggles.
     useEffect(() => {
         handlePayChange(payAmount);
     }, [currency, dmcPriceUsd]);
 
     const handleBuyNow = () => {
-        // Navigate to Trade view with DMC selected
         setSelectedSymbol('DMC');
         setView(ViewState.TRADE);
-        // Optionally pass the calculated amount to the trade view via local storage or a store action if needed
-        // For now, just taking them to the trade page for DMC is the logical next step.
     };
 
     return (
         <section id="calculator" className="py-20 bg-binance-black">
             <div className="container mx-auto px-4">
                 <div className="max-w-4xl mx-auto bg-[#131517] border border-binance-gray/30 rounded-3xl p-8 md:p-12 shadow-2xl relative overflow-hidden">
-                     {/* Decorative background circle */}
                      <div className="absolute top-10 right-10 w-48 h-48 bg-binance-yellow/5 rounded-full blur-[60px] pointer-events-none"></div>
 
                     <div className="text-center mb-10 relative z-10">
@@ -426,7 +414,6 @@ export const CalculatorSection: React.FC = () => {
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-12 items-center relative z-10 max-w-3xl mx-auto">
-                         {/* Input Side */}
                          <div className="space-y-4">
                             <label className="text-sm text-binance-subtext ml-1">{t.you_pay}</label>
                             <div className="relative">
@@ -452,7 +439,6 @@ export const CalculatorSection: React.FC = () => {
                             </div>
                          </div>
 
-                         {/* Output Side */}
                          <div className="space-y-4">
                             <label className="text-sm text-binance-subtext ml-1">{t.you_receive}</label>
                             <div className="relative">
@@ -466,7 +452,7 @@ export const CalculatorSection: React.FC = () => {
                                     DMC
                                 </div>
                             </div>
-                            <div className="h-4"></div> {/* Spacer to align with left side text */}
+                            <div className="h-4"></div>
                          </div>
                     </div>
 

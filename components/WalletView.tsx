@@ -235,8 +235,12 @@ const WalletView: React.FC = () => {
                       <CreditCard className="mx-auto text-binance-subtext mb-4" size={32} />
                       <p className="text-sm font-bold text-white mb-1">Verify your identity</p>
                       <p className="text-xs text-binance-subtext mb-6">Complete KYC in less than 2 minutes</p>
-                      <button className="px-8 py-3 bg-binance-yellow text-black font-bold rounded-xl text-sm transition-all active:scale-95">
-                          Start Verification
+                      <button 
+                        onClick={() => setView(ViewState.VERIFY)}
+                        disabled={user.kycStatus !== 'unverified'}
+                        className="px-8 py-3 bg-binance-yellow text-black font-bold rounded-xl text-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                          {user.kycStatus === 'unverified' ? 'Start Verification' : user.kycStatus === 'pending' ? 'Verification Pending' : 'Verified'}
                       </button>
                   </div>
               </div>

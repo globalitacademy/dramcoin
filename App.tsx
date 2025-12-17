@@ -8,6 +8,8 @@ import WalletView from './components/WalletView';
 import AdminDashboard from './components/AdminDashboard';
 import AdminLogin from './components/AdminLogin';
 import AuthView from './components/AuthView';
+import VerificationView from './components/VerificationView';
+import WhitepaperView from './components/WhitepaperView';
 import Footer from './components/Footer';
 import { HeroSection, FeaturesSection, TokenomicsSection, RoadmapSection, CalculatorSection, TeamSection } from './components/LandingSections';
 import { ViewState } from './types';
@@ -22,6 +24,10 @@ const AppContent: React.FC = () => {
     switch(currentView) {
       case ViewState.AUTH:
         return <AuthView />;
+      case ViewState.VERIFY:
+        return <VerificationView />;
+      case ViewState.WHITEPAPER:
+        return <WhitepaperView />;
       case ViewState.ADMIN:
         return isAdminAuthenticated ? <AdminDashboard /> : <AdminLogin />;
       case ViewState.TRADE:
@@ -68,7 +74,7 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const showNavbar = currentView !== ViewState.ADMIN && currentView !== ViewState.AUTH;
+  const showNavbar = currentView !== ViewState.ADMIN && currentView !== ViewState.AUTH && currentView !== ViewState.VERIFY;
 
   return (
     <div className="min-h-screen bg-[#181a20] text-[#eaecef] font-sans">

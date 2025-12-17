@@ -1,13 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { translations } from '../translations';
-import { Mail, Lock, User, ShieldCheck, Eye, EyeOff, AlertCircle, CheckCircle2, ArrowLeft, Smartphone, Globe } from 'lucide-react';
+import { Mail, Lock, User, ShieldCheck, Eye, EyeOff, AlertCircle, ArrowLeft, Smartphone, Globe, Loader2, X } from 'lucide-react';
 
 type AuthStep = 'login' | 'register' | 'forgot' | 'verify';
 
 const AuthView: React.FC = () => {
-  const { language, login, register, setView } = useStore();
+  const { language, login, register, loginWithGoogle } = useStore();
   const t = translations[language].auth;
   
   const [step, setStep] = useState<AuthStep>('login');
@@ -20,7 +20,25 @@ const AuthView: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  // Password strength calculation
+  // Google Simulation State
+  const [showGooglePopup, setShowGooglePopup] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  const mockGoogleAccounts = [
+    { name: 'Armen Sargsyan', email: 'armen.s@gmail.com', avatar: 'AS' },
+    { name: 'Hayk Martirosyan', email: 'hayk.crypto@gmail.com', avatar: 'HM' },
+    { name: 'Anush Davtyan', email: 'anush.d88@gmail.com', avatar: 'AD' }
+  ];
+
+  const handleGoogleSelect = (account: typeof mockGoogleAccounts[0]) => {
+    setIsGoogleLoading(true);
+    setTimeout(() => {
+        loginWithGoogle(account.email, account.name.split(' ')[0]);
+        setIsGoogleLoading(false);
+        setShowGooglePopup(false);
+    }, 1500);
+  };
+
   const getPasswordStrength = (pass: string) => {
     if (!pass) return 0;
     let strength = 0;
@@ -62,7 +80,6 @@ const AuthView: React.FC = () => {
     setError('');
     
     setTimeout(() => {
-        // Go to verification step first
         setStep('verify');
         setIsLoading(false);
     }, 1000);
@@ -89,8 +106,12 @@ const AuthView: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-binance-dark flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-binance-black border border-binance-gray rounded-3xl p-8 shadow-2xl animate-fade-in">
+    <div className="min-h-screen bg-binance-dark flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background Decorative Circles */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-binance-yellow/5 rounded-full blur-[120px] -z-10"></div>
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[120px] -z-10"></div>
+
+      <div className="w-full max-w-md bg-binance-black border border-binance-gray rounded-3xl p-8 shadow-2xl animate-fade-in z-10">
         
         {step !== 'login' && (
             <button onClick={() => setStep('login')} className="mb-6 text-binance-subtext hover:text-white flex items-center gap-1 text-sm transition-colors">
@@ -119,7 +140,7 @@ const AuthView: React.FC = () => {
         {step === 'login' && (
             <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-1">
-                    <label className="text-xs text-binance-subtext ml-1">{t.email}</label>
+                    <label className="text-xs text-binance-subtext ml-1 uppercase font-bold tracking-wider">{t.email}</label>
                     <div className="relative">
                         <Mail className="absolute left-3 top-3.5 text-binance-subtext" size={18} />
                         <input 
@@ -131,7 +152,7 @@ const AuthView: React.FC = () => {
                 </div>
                 <div className="space-y-1">
                     <div className="flex justify-between items-center px-1">
-                        <label className="text-xs text-binance-subtext">{t.password}</label>
+                        <label className="text-xs text-binance-subtext uppercase font-bold tracking-wider">{t.password}</label>
                         <button type="button" onClick={() => setStep('forgot')} className="text-xs text-binance-yellow hover:underline">{t.forgot_password}</button>
                     </div>
                     <div className="relative">
@@ -171,7 +192,11 @@ const AuthView: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                    <button type="button" className="flex items-center justify-center gap-2 py-3 border border-binance-gray rounded-xl hover:bg-binance-gray/30 transition-colors text-sm font-medium">
+                    <button 
+                        type="button" 
+                        onClick={() => setShowGooglePopup(true)}
+                        className="flex items-center justify-center gap-2 py-3 border border-binance-gray rounded-xl hover:bg-binance-gray/30 transition-colors text-sm font-medium"
+                    >
                         <Globe size={18} className="text-blue-400" /> Google
                     </button>
                     <button type="button" className="flex items-center justify-center gap-2 py-3 border border-binance-gray rounded-xl hover:bg-binance-gray/30 transition-colors text-sm font-medium">
@@ -184,7 +209,7 @@ const AuthView: React.FC = () => {
         {step === 'register' && (
             <form onSubmit={handleRegister} className="space-y-4">
                 <div className="space-y-1">
-                    <label className="text-xs text-binance-subtext ml-1">{t.username}</label>
+                    <label className="text-xs text-binance-subtext ml-1 uppercase font-bold tracking-wider">{t.username}</label>
                     <div className="relative">
                         <User className="absolute left-3 top-3.5 text-binance-subtext" size={18} />
                         <input 
@@ -195,7 +220,7 @@ const AuthView: React.FC = () => {
                     </div>
                 </div>
                 <div className="space-y-1">
-                    <label className="text-xs text-binance-subtext ml-1">{t.email}</label>
+                    <label className="text-xs text-binance-subtext ml-1 uppercase font-bold tracking-wider">{t.email}</label>
                     <div className="relative">
                         <Mail className="absolute left-3 top-3.5 text-binance-subtext" size={18} />
                         <input 
@@ -206,7 +231,7 @@ const AuthView: React.FC = () => {
                     </div>
                 </div>
                 <div className="space-y-1">
-                    <label className="text-xs text-binance-subtext ml-1">{t.password}</label>
+                    <label className="text-xs text-binance-subtext ml-1 uppercase font-bold tracking-wider">{t.password}</label>
                     <div className="relative">
                         <Lock className="absolute left-3 top-3.5 text-binance-subtext" size={18} />
                         <input 
@@ -218,7 +243,7 @@ const AuthView: React.FC = () => {
                     {renderStrengthMeter()}
                 </div>
                 <div className="space-y-1">
-                    <label className="text-xs text-binance-subtext ml-1">{t.confirm_password}</label>
+                    <label className="text-xs text-binance-subtext ml-1 uppercase font-bold tracking-wider">{t.confirm_password}</label>
                     <div className="relative">
                         <Lock className="absolute left-3 top-3.5 text-binance-subtext" size={18} />
                         <input 
@@ -283,6 +308,60 @@ const AuthView: React.FC = () => {
             </form>
         )}
       </div>
+
+      {/* Google Sign-In Simulation Popup */}
+      {showGooglePopup && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-sm rounded-lg shadow-2xl overflow-hidden animate-fade-in relative">
+                {isGoogleLoading && (
+                    <div className="absolute inset-0 bg-white/80 z-10 flex flex-col items-center justify-center">
+                        <Loader2 className="animate-spin text-blue-600 mb-2" size={32} />
+                        <span className="text-xs text-gray-600 font-medium">Signing in...</span>
+                    </div>
+                )}
+                
+                <div className="p-6 border-b flex justify-between items-center">
+                    <img src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png" alt="Google" className="h-6" />
+                    <button onClick={() => setShowGooglePopup(false)} className="text-gray-400 hover:text-gray-600">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <div className="p-8">
+                    <h3 className="text-xl font-medium text-gray-900 text-center mb-1">Choose an account</h3>
+                    <p className="text-sm text-gray-600 text-center mb-8">to continue to DramCoin</p>
+
+                    <div className="space-y-2">
+                        {mockGoogleAccounts.map((acc, i) => (
+                            <button 
+                                key={i}
+                                onClick={() => handleGoogleSelect(acc)}
+                                className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition-colors border-b border-gray-100 last:border-0"
+                            >
+                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">
+                                    {acc.avatar}
+                                </div>
+                                <div className="text-left">
+                                    <div className="text-sm font-medium text-gray-900">{acc.name}</div>
+                                    <div className="text-xs text-gray-500">{acc.email}</div>
+                                </div>
+                            </button>
+                        ))}
+                        <button className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition-colors mt-4">
+                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-xs">
+                                <User size={16} />
+                            </div>
+                            <div className="text-sm font-medium text-gray-700">Use another account</div>
+                        </button>
+                    </div>
+
+                    <div className="mt-8 text-[11px] text-gray-500 text-center">
+                        To continue, Google will share your name, email address, language preference, and profile picture with DramCoin.
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 };

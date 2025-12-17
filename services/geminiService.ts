@@ -2,36 +2,36 @@
 import { GoogleGenAI } from "@google/genai";
 
 /**
- * Provides market analysis using the Gemini AI model.
- * Adheres to Google GenAI SDK guidelines for initialization and model selection.
+ * Provides market analysis using the Gemini AI model with Google Search grounding.
  */
-export const getMarketAnalysis = async (query: string, marketContext: string): Promise<string> => {
-  // Create a new GoogleGenAI instance right before making an API call to ensure it always uses the most up-to-date API key.
-  // The API key is obtained exclusively from process.env.API_KEY.
+export const getMarketAnalysis = async (query: string, marketContext: string): Promise<{text: string, sources?: any[]}> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
   try {
-    // Select gemini-3-flash-preview for basic text tasks (summarization/analysis) as recommended.
+    // Using gemini-3-flash-preview for fast and real-time grounded responses.
     const model = 'gemini-3-flash-preview';
-    const systemInstruction = `You are an expert cryptocurrency market analyst for a platform called DramCoin. 
-    You speak Armenian (primary) and English. 
-    Provide concise, professional technical analysis or answers about crypto trading. 
-    The user is currently viewing: ${marketContext}.
-    Keep answers short (under 100 words) unless asked for details.
-    Use bolding for key figures.`;
+    const systemInstruction = `You are a professional crypto analyst for DramCoin. 
+    Use the provided search tools to find REAL-TIME information about cryptocurrency prices, news, and trends.
+    Current context: ${marketContext}.
+    Always provide factual, up-to-date information. 
+    Speak Armenian (primary) and English. 
+    If you mention a price or news, mention that you've searched for it.`;
 
     const response = await ai.models.generateContent({
       model: model,
       contents: query,
       config: {
         systemInstruction: systemInstruction,
+        tools: [{ googleSearch: {} }] // Enabling Google Search for real data
       }
     });
 
-    // Access the generated text directly from the response.text property.
-    return response.text || "Ներեցեք, ես չկարողացա վերլուծել տվյալները:";
+    const text = response.text || "Ներեցեք, ես չկարողացա վերլուծել տվյալները:";
+    const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+
+    return { text, sources };
   } catch (error) {
     console.error("Gemini API Error:", error);
-    return "Տեղի ունեցավ սխալ AI ծառայության հետ կապ հաստատելիս:";
+    return { text: "Տեղի ունեցավ սխալ AI ծառայության հետ կապ հաստատելիս:" };
   }
 };
