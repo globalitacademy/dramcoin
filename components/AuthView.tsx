@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { translations } from '../translations';
 import { Mail, Lock, User, ShieldCheck, Eye, EyeOff, AlertCircle, ArrowLeft, Smartphone, Globe, Loader2, Phone } from 'lucide-react';
@@ -7,7 +7,7 @@ import { Mail, Lock, User, ShieldCheck, Eye, EyeOff, AlertCircle, ArrowLeft, Sma
 type AuthStep = 'login' | 'register' | 'forgot' | 'verify' | 'phone';
 
 const AuthView: React.FC = () => {
-  const { language, login, register, loginWithGoogle, loginWithPhone, verifyOtp } = useStore();
+  const { language, login, register, loginWithGoogle, loginWithPhone, verifyOtp, user } = useStore();
   const t = translations[language].auth;
   
   const [step, setStep] = useState<AuthStep>('login');
@@ -22,21 +22,29 @@ const AuthView: React.FC = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // If user becomes logged in while on this view, the context should have redirected them, 
+  // but we can add a local check too.
+
   const handleGoogleLogin = async () => {
     setIsLoading(true);
     setError('');
-    const result = await loginWithGoogle();
-    
-    if (result && !result.success) {
-      if (result.message?.includes('provider is not enabled')) {
-        setError(language === 'AM' 
-          ? 'Google մուտքը դեռ միացված չէ Supabase Dashboard-ում: Խնդրում ենք ակտիվացնել այն:' 
-          : 'Google login is not enabled in Supabase Dashboard yet.');
-      } else {
-        setError(result.message || (language === 'AM' ? 'Google-ով մուտքը ձախողվեց:' : 'Google login failed.'));
+    try {
+      const result = await loginWithGoogle();
+      if (result && !result.success) {
+        if (result.message?.includes('provider is not enabled')) {
+          setError(language === 'AM' 
+            ? 'Google մուտքը դեռ միացված չէ Supabase-ում: Խնդրում ենք ստուգել կարգավորումները:' 
+            : 'Google login is not enabled in Supabase Dashboard yet.');
+        } else {
+          setError(result.message || (language === 'AM' ? 'Google-ով մուտքը ձախողվեց:' : 'Google login failed.'));
+        }
       }
+      // Note: If successful, the page will redirect to Google's consent screen.
+    } catch (err: any) {
+      setError(err.message || 'OAuth Error');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handlePhoneSubmit = async (e: React.FormEvent) => {
@@ -130,7 +138,7 @@ const AuthView: React.FC = () => {
                 <ShieldCheck size={32} />
             </div>
             <h2 className="text-2xl font-bold text-white">
-                {step === 'login' ? t.login_title : step === 'register' ? t.register_title : step === 'verify' ? t.verify_title : step === 'phone' ? language === 'AM' ? 'Հեռախոսով մուտք' : 'Phone Login' : t.reset_title}
+                {step === 'login' ? t.login_title : step === 'register' ? t.register_title : step === 'verify' ? t.verify_title : step === 'phone' ? (language === 'AM' ? 'Հեռախոսով մուտք' : 'Phone Login') : t.reset_title}
             </h2>
         </div>
 

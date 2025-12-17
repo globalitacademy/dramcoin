@@ -87,6 +87,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           await syncUserData(session.user.id, session.user.email || session.user.phone || '');
+          // If already logged in and on AUTH page, move to HOME
+          if (window.location.search.includes('access_token') || window.location.hash.includes('access_token')) {
+             setView(ViewState.HOME);
+          }
         }
       } catch (err) {
         console.error("Auth init error:", err);
@@ -100,6 +104,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
         await syncUserData(session.user.id, session.user.email || session.user.phone || '');
+        // On successful OAuth or login, redirect to Home/Wallet if currently in AUTH
+        setView(prev => (prev === ViewState.AUTH || prev === ViewState.VERIFY) ? ViewState.HOME : prev);
       } else {
         if (!localStorage.getItem('dramcoin_local_login')) {
           setUser(INITIAL_USER);
@@ -144,23 +150,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const syncUserData = async (userId: string, contact: string) => {
     try {
-      // 1. Get or Create Profile
       let { data: profile, error: pError } = await supabase.from('profiles').select('*').eq('id', userId).single();
-
       if (!profile || pError) {
-        const { data: newProfile } = await supabase.from('profiles').upsert([{ 
-          id: userId, 
-          username: contact.split('@')[0], 
-          kyc_status: 'unverified' 
-        }]).select().single();
+        const { data: newProfile } = await supabase.from('profiles').upsert([{ id: userId, username: contact.split('@')[0] || 'User', kyc_status: 'unverified' }]).select().single();
         profile = newProfile;
       }
-
-      // 2. Fetch Assets & Initialize if empty
       let { data: assets } = await supabase.from('assets').select('*').eq('user_id', userId);
-      
       if (!assets || assets.length === 0) {
-        // First time user initialization
         const initialAssets = [
           { user_id: userId, symbol: 'USDT', amount: 1000 },
           { user_id: userId, symbol: 'BTC', amount: 0 },
@@ -170,37 +166,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const { data: freshAssets } = await supabase.from('assets').select('*').eq('user_id', userId);
         assets = freshAssets;
       }
-
-      // 3. Fetch Transactions
-      const { data: transactions } = await supabase.from('transactions')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-
-      const formattedAssets: Asset[] = assets?.map(a => ({ 
-        symbol: a.symbol, 
-        amount: a.amount, 
-        valueUsd: 0 
-      })) || INITIAL_USER.assets;
-
-      const formattedTxs: Transaction[] = transactions?.map(t => ({
-        id: t.id,
-        type: t.type as any,
-        symbol: t.symbol,
-        amount: t.amount,
-        date: t.created_at,
-        status: t.status as any
-      })) || [];
-
-      setUser({
-        username: profile?.username || contact.split('@')[0],
-        email: contact,
-        isLoggedIn: true,
-        kycStatus: (profile?.kyc_status as any) || 'unverified',
-        twoFactorEnabled: profile?.two_factor_enabled || false,
-        assets: formattedAssets,
-        transactions: formattedTxs
-      });
+      const { data: transactions } = await supabase.from('transactions').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+      const formattedAssets: Asset[] = assets?.map(a => ({ symbol: a.symbol, amount: a.amount, valueUsd: 0 })) || INITIAL_USER.assets;
+      const formattedTxs: Transaction[] = transactions?.map(t => ({ id: t.id, type: t.type as any, symbol: t.symbol, amount: t.amount, date: t.created_at, status: t.status as any })) || [];
+      setUser({ username: profile?.username || contact.split('@')[0] || 'User', email: contact, isLoggedIn: true, kycStatus: (profile?.kyc_status as any) || 'unverified', twoFactorEnabled: profile?.two_factor_enabled || false, assets: formattedAssets, transactions: formattedTxs });
     } catch (err) {
       console.error("Database Sync Error:", err);
     }
@@ -212,47 +181,46 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!response.ok) throw new Error('API Error');
       const data = await response.json();
       const targetSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'ADAUSDT', 'DOGEUSDT', 'XRPUSDT'];
-      
-      const formattedData: CoinData[] = data
-        .filter((item: any) => targetSymbols.includes(item.symbol))
-        .map((item: any, index: number) => ({
-          id: String(index),
-          symbol: item.symbol.replace('USDT', ''),
-          name: item.symbol.replace('USDT', ''),
-          price: parseFloat(item.lastPrice),
-          change24h: parseFloat(item.priceChangePercent),
-          volume: (parseFloat(item.quoteVolume) / 1000000).toFixed(2) + 'M',
-          marketCap: 'N/A'
-        }));
-
-      const dmcCoin: CoinData = {
-          id: 'dmc-001',
-          symbol: 'DMC',
-          name: 'DramCoin',
-          price: 0.54 * dmcMultiplier,
-          change24h: dmcMultiplier > 1 ? 12 + (dmcMultiplier - 1) * 100 : 12,
-          volume: '2.5M',
-          marketCap: '120M'
-      };
-
+      const formattedData: CoinData[] = data.filter((item: any) => targetSymbols.includes(item.symbol)).map((item: any, index: number) => ({ id: String(index), symbol: item.symbol.replace('USDT', ''), name: item.symbol.replace('USDT', ''), price: parseFloat(item.lastPrice), change24h: parseFloat(item.priceChangePercent), volume: (parseFloat(item.quoteVolume) / 1000000).toFixed(2) + 'M', marketCap: 'N/A' }));
+      const dmcCoin: CoinData = { id: 'dmc-001', symbol: 'DMC', name: 'DramCoin', price: 0.54 * dmcMultiplier, change24h: dmcMultiplier > 1 ? 12 + (dmcMultiplier - 1) * 100 : 12, volume: '2.5M', marketCap: '120M' };
       setMarketData([dmcCoin, ...formattedData]);
     } catch (e) {
-      console.warn("Real-time market data unavailable, using cache.");
+      const dmcCoin: CoinData = { id: 'dmc-001', symbol: 'DMC', name: 'DramCoin', price: 0.54 * dmcMultiplier, change24h: dmcMultiplier > 1 ? 12 + (dmcMultiplier - 1) * 100 : 12, volume: '2.5M', marketCap: '120M' };
+      setMarketData(prev => {
+        const others = prev.filter(c => c.symbol !== 'DMC');
+        return [dmcCoin, ...others];
+      });
     }
   };
+
+  useEffect(() => {
+    setMarketData(prev => {
+      return prev.map(coin => {
+        if (coin.symbol === 'DMC') {
+          return {
+            ...coin,
+            price: 0.54 * dmcMultiplier,
+            change24h: dmcMultiplier > 1 ? 12 + (dmcMultiplier - 1) * 100 : 12
+          };
+        }
+        return coin;
+      });
+    });
+    if (selectedSymbol === 'DMC') {
+      setCurrentPrice(0.54 * dmcMultiplier);
+    }
+  }, [dmcMultiplier]);
 
   useEffect(() => {
     fetchMarketData();
     const interval = setInterval(fetchMarketData, 15000);
     return () => clearInterval(interval);
-  }, [dmcMultiplier]);
+  }, []);
 
   useEffect(() => {
     const streamSymbol = selectedSymbol === 'DMC' ? 'btcusdt' : `${selectedSymbol.toLowerCase()}usdt`;
     const wsUrl = `wss://stream.binance.com:9443/ws/${streamSymbol}@trade`;
-    
     if (wsRef.current) wsRef.current.close();
-    
     try {
       wsRef.current = new WebSocket(wsUrl);
       wsRef.current.onmessage = (event) => {
@@ -263,9 +231,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       };
     } catch (e) {}
-    
     return () => wsRef.current?.close();
-  }, [selectedSymbol, dmcMultiplier]);
+  }, [selectedSymbol]);
 
   const login = async (email: string, pass: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
@@ -275,16 +242,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const register = async (username: string, email: string, pass: string) => {
-    const { data, error } = await supabase.auth.signUp({ 
-      email, 
-      password: pass, 
-      options: { data: { username } } 
-    });
-    
+    const { data, error } = await supabase.auth.signUp({ email, password: pass, options: { data: { username } } });
     if (error) return { success: false, message: error.message };
-    
     if (data.user) {
-      // Profile and Assets will be handled by syncUserData on session change
       setView(ViewState.HOME);
       return { success: true };
     }
@@ -295,7 +255,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const { error } = await supabase.auth.signInWithOAuth({ 
         provider: 'google', 
-        options: { redirectTo: window.location.origin } 
+        options: { 
+          redirectTo: window.location.origin,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        } 
       });
       if (error) throw error;
       return { success: true };
@@ -392,27 +358,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const executeTrade = async (type: 'buy' | 'sell', symbol: string, amount: number, price: number) => {
     const { data: { user: sbUser } } = await supabase.auth.getUser();
     if (!sbUser) return { success: false, message: 'Please login' };
-
     const totalValue = amount * price;
     const fee = totalValue * (systemSettings.platformFee / 100);
-    
     const usdtAsset = user.assets.find(a => a.symbol === 'USDT');
     const coinAsset = user.assets.find(a => a.symbol === symbol);
-
     try {
       if (type === 'buy') {
         const cost = totalValue + fee;
         if (usdtAsset && usdtAsset.amount < cost && !isAdminAuthenticated) return { success: false, message: 'Insufficient funds' };
-        
         await supabase.from('assets').upsert({ user_id: sbUser.id, symbol: 'USDT', amount: (usdtAsset?.amount || 0) - cost }, { onConflict: 'user_id,symbol' });
         await supabase.from('assets').upsert({ user_id: sbUser.id, symbol, amount: (coinAsset?.amount || 0) + amount }, { onConflict: 'user_id,symbol' });
       } else {
         if (coinAsset && coinAsset.amount < amount && !isAdminAuthenticated) return { success: false, message: 'Insufficient coins' };
-        
         await supabase.from('assets').upsert({ user_id: sbUser.id, symbol, amount: (coinAsset?.amount || 0) - amount }, { onConflict: 'user_id,symbol' });
         await supabase.from('assets').upsert({ user_id: sbUser.id, symbol: 'USDT', amount: (usdtAsset?.amount || 0) + (totalValue - fee) }, { onConflict: 'user_id,symbol' });
       }
-
       await supabase.from('transactions').insert([{ user_id: sbUser.id, type, symbol, amount, status: 'completed' }]);
       await syncUserData(sbUser.id, sbUser.email || sbUser.phone || '');
       return { success: true, message: 'Trade successful' };
@@ -438,10 +398,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const transfer = async (symbol: string, amount: number) => {
     const { data: { user: sbUser } } = await supabase.auth.getUser();
     if (!sbUser) return { success: false };
-    
     const asset = user.assets.find(a => a.symbol === symbol);
     if (!asset || asset.amount < amount) return { success: false, message: 'Insufficient funds' };
-
     try {
       await supabase.from('assets').update({ amount: asset.amount - amount }).eq('user_id', sbUser.id).eq('symbol', symbol);
       await supabase.from('transactions').insert([{ user_id: sbUser.id, type: 'withdrawal', symbol, amount, status: 'completed' }]);

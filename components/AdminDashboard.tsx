@@ -3,8 +3,6 @@ import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { 
   Users, 
-  Database, 
-  Settings, 
   BarChart3, 
   ShieldCheck, 
   TrendingUp, 
@@ -23,9 +21,9 @@ import {
   XCircle,
   AlertTriangle,
   LayoutDashboard,
-  Globe
+  Globe,
+  Settings
 } from 'lucide-react';
-import { ViewState } from '../types';
 import { translations } from '../translations';
 
 const AdminDashboard: React.FC = () => {
@@ -42,7 +40,7 @@ const AdminDashboard: React.FC = () => {
     setLanguage
   } = useStore();
   
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'transactions' | 'settings' | 'trading' | 'kyc'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'trading' | 'kyc' | 'settings'>('overview');
   const [tempSettings, setTempSettings] = useState(systemSettings);
   const [searchTerm, setSearchTerm] = useState('');
   const t = translations[language].admin;
@@ -53,7 +51,7 @@ const AdminDashboard: React.FC = () => {
   const [selectedSymbol, setSelectedSymbol] = useState('DMC');
 
   const globalTransactions = useMemo(() => {
-    return allUsers.flatMap(u => u.transactions.map(t => ({ ...t, username: u.username })))
+    return allUsers.flatMap(u => u.transactions.map(tr => ({ ...tr, username: u.username })))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [allUsers]);
 
@@ -67,10 +65,10 @@ const AdminDashboard: React.FC = () => {
   );
 
   const stats = [
-    { label: 'Օգտատերեր', value: allUsers.length, icon: <Users className="text-blue-500" />, change: 'Իրական' },
-    { label: 'DMC Գին', value: `$${(marketData.find(c => c.symbol === 'DMC')?.price || 0).toFixed(4)}`, icon: <TrendingUp className="text-binance-green" />, change: 'Live' },
-    { label: 'Գործարքներ', value: globalTransactions.length, icon: <Activity className="text-purple-500" />, change: 'Ընդհանուր' },
-    { label: 'KYC Սպասող', value: kycPendingUsers.length, icon: <ShieldCheck className="text-yellow-500" />, change: 'Հայտեր' },
+    { label: t.stats_users, value: allUsers.length, icon: <Users className="text-blue-500" />, change: 'REAL' },
+    { label: t.stats_price, value: `$${(marketData.find(c => c.symbol === 'DMC')?.price || 0).toFixed(4)}`, icon: <TrendingUp className="text-binance-green" />, change: 'LIVE' },
+    { label: t.stats_txs, value: globalTransactions.length, icon: <Activity className="text-purple-500" />, change: 'TOTAL' },
+    { label: t.stats_kyc, value: kycPendingUsers.length, icon: <ShieldCheck className="text-yellow-500" />, change: 'REQ' },
   ];
 
   const handleAdminTrade = (type: 'buy' | 'sell') => {
@@ -81,7 +79,7 @@ const AdminDashboard: React.FC = () => {
       executeTrade(type, selectedSymbol, amount, price);
       setAdminTradeAmount('');
       setAdminTradePrice('');
-      alert('Գործարքը հաջողությամբ կատարվեց ադմինիստրատորի կողմից:');
+      alert(language === 'AM' ? 'Գործարքը հաջողությամբ կատարվեց:' : 'Trade executed successfully by admin.');
     }
   };
 
@@ -93,18 +91,18 @@ const AdminDashboard: React.FC = () => {
   };
 
   const AdminHeader = () => (
-    <header className="h-16 bg-binance-black border-b border-binance-gray flex items-center justify-between px-6 sticky top-0 z-50">
+    <header className="h-16 bg-binance-black border-b border-binance-gray flex items-center justify-between px-6 sticky top-0 z-50 shadow-lg">
       <div className="flex items-center gap-4">
         <div className="w-8 h-8 rounded-lg bg-binance-yellow flex items-center justify-center text-black font-bold">A</div>
-        <h1 className="text-white font-bold tracking-wider hidden md:block">DRAMCOIN <span className="text-binance-yellow">ADMIN PANEL</span></h1>
+        <h1 className="text-white font-bold tracking-wider hidden md:block">DRAMCOIN <span className="text-binance-yellow">{t.panel_name}</span></h1>
       </div>
       
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2 px-3 py-1 bg-binance-gray/30 rounded-lg border border-binance-gray/50">
            <Globe size={14} className="text-binance-subtext" />
-           <button onClick={() => setLanguage('AM')} className={`text-xs font-bold ${language === 'AM' ? 'text-binance-yellow' : 'text-binance-subtext'}`}>AM</button>
+           <button onClick={() => setLanguage('AM')} className={`text-xs font-bold ${language === 'AM' ? 'text-binance-yellow' : 'text-binance-subtext hover:text-white transition-colors'}`}>AM</button>
            <span className="text-binance-gray">|</span>
-           <button onClick={() => setLanguage('EN')} className={`text-xs font-bold ${language === 'EN' ? 'text-binance-yellow' : 'text-binance-subtext'}`}>EN</button>
+           <button onClick={() => setLanguage('EN')} className={`text-xs font-bold ${language === 'EN' ? 'text-binance-yellow' : 'text-binance-subtext hover:text-white transition-colors'}`}>EN</button>
         </div>
         
         <div className="h-8 w-px bg-binance-gray"></div>
@@ -128,7 +126,7 @@ const AdminDashboard: React.FC = () => {
           <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-binance-green"></div> Supabase Connected</span>
           <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-binance-green"></div> Binance API Live</span>
         </div>
-        <p>© 2024 DramCoin Exchange. Admin Dashboard v2.1.0</p>
+        <p>© 2024 DramCoin Exchange. Admin Dashboard v2.2.0</p>
       </div>
     </footer>
   );
@@ -151,7 +149,7 @@ const AdminDashboard: React.FC = () => {
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-binance-black border border-binance-gray rounded-2xl p-8 shadow-xl">
           <div className="flex justify-between items-center mb-8">
-              <h3 className="font-bold text-white flex items-center gap-2"><BarChart3 size={20} className="text-binance-yellow" /> Platform Load (24h)</h3>
+              <h3 className="font-bold text-white flex items-center gap-2"><BarChart3 size={20} className="text-binance-yellow" /> {t.platform_load}</h3>
           </div>
           <div className="h-64 flex items-end justify-between gap-1.5">
              {[35, 60, 45, 80, 55, 75, 40, 90, 65, 50, 85, 70, 45, 60, 80, 40, 55, 75, 95, 65, 50, 40, 60, 80].map((h, i) => (
@@ -161,16 +159,16 @@ const AdminDashboard: React.FC = () => {
         </div>
         
         <div className="bg-binance-black border border-binance-gray rounded-2xl p-8 shadow-xl flex flex-col">
-          <h3 className="font-bold text-white mb-8">Արագ Գործողություններ</h3>
+          <h3 className="font-bold text-white mb-8">{t.quick_actions}</h3>
           <div className="space-y-4 flex-1">
              <button onClick={() => setActiveTab('trading')} className="w-full flex items-center justify-between p-5 bg-binance-gray/10 rounded-2xl hover:bg-binance-gray/30 transition-all group">
-                <div className="flex items-center gap-4"><Zap className="text-binance-yellow" /> <span className="text-sm font-bold text-white">Market Making</span></div>
+                <div className="flex items-center gap-4"><Zap className="text-binance-yellow" /> <span className="text-sm font-bold text-white">{t.market_making}</span></div>
              </button>
              <button onClick={() => setActiveTab('kyc')} className="w-full flex items-center justify-between p-5 bg-binance-gray/10 rounded-2xl hover:bg-binance-gray/30 transition-all group">
-                <div className="flex items-center gap-4"><ShieldCheck className="text-yellow-500" /> <span className="text-sm font-bold text-white">KYC Review</span></div>
+                <div className="flex items-center gap-4"><ShieldCheck className="text-yellow-500" /> <span className="text-sm font-bold text-white">{t.kyc_review}</span></div>
              </button>
              <button onClick={adminLogout} className="w-full flex items-center justify-between p-5 bg-binance-red/5 rounded-2xl hover:bg-binance-red/10 group mt-auto">
-                <div className="flex items-center gap-4"><LogOut className="text-binance-red" /> <span className="text-sm font-bold text-binance-red">Sign-out</span></div>
+                <div className="flex items-center gap-4"><LogOut className="text-binance-red" /> <span className="text-sm font-bold text-binance-red">{t.logout}</span></div>
              </button>
           </div>
         </div>
@@ -184,12 +182,12 @@ const AdminDashboard: React.FC = () => {
         return (
           <div className="bg-binance-black border border-binance-gray rounded-xl overflow-hidden animate-fade-in shadow-xl">
             <div className="p-6 border-b border-binance-gray flex flex-col md:flex-row justify-between items-center gap-4 bg-binance-gray/10">
-              <h3 className="font-bold text-xl text-white">Օգտատերերի Բազա</h3>
+              <h3 className="font-bold text-xl text-white">{t.users_db}</h3>
               <div className="relative w-full md:w-64">
                 <Search className="absolute left-3 top-2.5 text-binance-subtext" size={16} />
                 <input 
                   type="text" 
-                  placeholder="Փնտրել օգտատեր..." 
+                  placeholder={t.search_placeholder}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full bg-binance-dark border border-binance-gray rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-binance-yellow text-white" 
@@ -200,11 +198,11 @@ const AdminDashboard: React.FC = () => {
               <table className="w-full text-left">
                 <thead className="bg-binance-gray/20 text-binance-subtext text-xs uppercase font-bold">
                   <tr>
-                    <th className="p-4">Օգտատեր</th>
-                    <th className="p-4">UUID / Contact</th>
-                    <th className="p-4">KYC</th>
-                    <th className="p-4">Հաշվեկշիռ (USDT)</th>
-                    <th className="p-4 text-right">Գործողություն</th>
+                    <th className="p-4">{t.table_user}</th>
+                    <th className="p-4">{t.table_contact}</th>
+                    <th className="p-4">{t.table_kyc}</th>
+                    <th className="p-4">{t.table_balance}</th>
+                    <th className="p-4 text-right">{t.table_action}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-binance-gray/20">
@@ -245,17 +243,17 @@ const AdminDashboard: React.FC = () => {
         return (
           <div className="bg-binance-black border border-binance-gray rounded-xl overflow-hidden animate-fade-in shadow-xl">
             <div className="p-6 border-b border-binance-gray bg-binance-gray/10">
-              <h3 className="font-bold text-xl text-white">KYC Վերիֆիկացիայի Հայտեր</h3>
-              <p className="text-xs text-binance-subtext mt-1">Հաստատեք կամ մերժեք օգտատերերի ինքնությունը</p>
+              <h3 className="font-bold text-xl text-white">{t.kyc_pending_title}</h3>
+              <p className="text-xs text-binance-subtext mt-1">{t.kyc_pending_subtitle}</p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead className="bg-binance-gray/20 text-binance-subtext text-xs uppercase font-bold">
                   <tr>
-                    <th className="p-4">Օգտատեր</th>
-                    <th className="p-4">UUID</th>
-                    <th className="p-4">Կարգավիճակ</th>
-                    <th className="p-4 text-right">Գործողություններ</th>
+                    <th className="p-4">{t.table_user}</th>
+                    <th className="p-4">{t.table_contact}</th>
+                    <th className="p-4">{t.table_kyc}</th>
+                    <th className="p-4 text-right">{t.table_action}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-binance-gray/20">
@@ -265,7 +263,7 @@ const AdminDashboard: React.FC = () => {
                         <div className="font-bold text-white">{u.username}</div>
                       </td>
                       <td className="p-4 text-xs font-mono text-binance-subtext">{u.email}</td>
-                      <td className="p-4 text-yellow-500 font-bold text-xs uppercase flex items-center gap-1 mt-3">
+                      <td className="p-4 text-yellow-500 font-bold text-xs uppercase flex items-center gap-1">
                         <AlertTriangle size={12} /> Pending
                       </td>
                       <td className="p-4 text-right space-x-2">
@@ -273,18 +271,18 @@ const AdminDashboard: React.FC = () => {
                           onClick={() => adminVerifyKyc(u.email, 'verified')}
                           className="px-3 py-1 bg-binance-green text-black text-xs font-bold rounded hover:bg-green-400 transition-colors inline-flex items-center gap-1"
                         >
-                          <CheckCircle size={14} /> Հաստատել
+                          <CheckCircle size={14} /> {t.approve}
                         </button>
                         <button 
                           onClick={() => adminVerifyKyc(u.email, 'unverified')}
                           className="px-3 py-1 bg-binance-red text-white text-xs font-bold rounded hover:bg-red-600 transition-colors inline-flex items-center gap-1"
                         >
-                          <XCircle size={14} /> Մերժել
+                          <XCircle size={14} /> {t.reject}
                         </button>
                       </td>
                     </tr>
                   )) : (
-                    <tr><td colSpan={4} className="p-20 text-center text-binance-subtext">Սպասվող հայտեր չկան</td></tr>
+                    <tr><td colSpan={4} className="p-20 text-center text-binance-subtext">{language === 'AM' ? 'Սպասվող հայտեր չկան' : 'No pending requests'}</td></tr>
                   )}
                 </tbody>
               </table>
@@ -297,12 +295,12 @@ const AdminDashboard: React.FC = () => {
           <div className="grid lg:grid-cols-2 gap-8 animate-fade-in">
              <div className="bg-binance-black border border-binance-gray rounded-2xl p-8 shadow-xl">
                 <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                  <Zap size={22} className="text-binance-yellow" /> Market Making
+                  <Zap size={22} className="text-binance-yellow" /> {t.market_making}
                 </h3>
                 <div className="space-y-6">
                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <label className="text-xs text-binance-subtext font-bold uppercase">Ակտիվ</label>
+                        <label className="text-xs text-binance-subtext font-bold uppercase">{language === 'AM' ? 'Ակտիվ' : 'Asset'}</label>
                         <select 
                           value={selectedSymbol}
                           onChange={(e) => setSelectedSymbol(e.target.value)}
@@ -312,7 +310,7 @@ const AdminDashboard: React.FC = () => {
                         </select>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs text-binance-subtext font-bold uppercase">Քանակ</label>
+                        <label className="text-xs text-binance-subtext font-bold uppercase">{t.amount}</label>
                         <input 
                           type="number" 
                           value={adminTradeAmount}
@@ -323,12 +321,12 @@ const AdminDashboard: React.FC = () => {
                       </div>
                    </div>
                    <div className="space-y-2">
-                      <label className="text-xs text-binance-subtext font-bold uppercase">Գին (Օպցիոնալ)</label>
+                      <label className="text-xs text-binance-subtext font-bold uppercase">{t.price_optional}</label>
                       <input 
                         type="number" 
                         value={adminTradePrice}
                         onChange={(e) => setAdminTradePrice(e.target.value)}
-                        placeholder="Շուկայական գին"
+                        placeholder={language === 'AM' ? 'Շուկայական գին' : 'Market Price'}
                         className="w-full bg-binance-dark border border-binance-gray rounded-xl p-3 text-white focus:outline-none focus:border-binance-yellow font-mono"
                       />
                    </div>
@@ -337,20 +335,20 @@ const AdminDashboard: React.FC = () => {
                         onClick={() => handleAdminTrade('buy')}
                         className="py-4 bg-binance-green text-black font-bold rounded-xl hover:shadow-lg hover:shadow-green-500/20 transition-all flex items-center justify-center gap-2"
                       >
-                         <Plus size={18} /> Market Buy
+                         <Plus size={18} /> {t.market_buy}
                       </button>
                       <button 
                         onClick={() => handleAdminTrade('sell')}
                         className="py-4 bg-binance-red text-white font-bold rounded-xl hover:shadow-lg hover:shadow-red-500/20 transition-all flex items-center justify-center gap-2"
                       >
-                         <TrendingDown size={18} /> Market Sell
+                         <TrendingDown size={18} /> {t.market_sell}
                       </button>
                    </div>
                 </div>
              </div>
              <div className="bg-binance-black border border-binance-gray rounded-2xl p-8 shadow-xl">
                 <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                  <TrendingUp size={22} className="text-binance-yellow" /> DMC Manipulation
+                  <TrendingUp size={22} className="text-binance-yellow" /> {t.dmc_manipulation}
                 </h3>
                 <div className="p-6 bg-binance-gray/10 rounded-2xl mb-8 border border-binance-gray/20">
                    <div className="flex justify-between items-center">
@@ -365,19 +363,19 @@ const AdminDashboard: React.FC = () => {
                       onClick={() => handleManipulation('pump')}
                       className="w-full py-4 bg-binance-green/10 border border-binance-green text-binance-green rounded-xl font-bold hover:bg-binance-green hover:text-black transition-all flex items-center justify-center gap-2"
                     >
-                      <ArrowUpRight size={18} /> Force Pump (+15%)
+                      <ArrowUpRight size={18} /> {t.pump}
                    </button>
                    <button 
                       onClick={() => handleManipulation('dump')}
                       className="w-full py-4 bg-binance-red/10 border border-binance-red text-binance-red rounded-xl font-bold hover:bg-binance-red hover:text-white transition-all flex items-center justify-center gap-2"
                     >
-                      <ArrowDownLeft size={18} /> Force Dump (-15%)
+                      <ArrowDownLeft size={18} /> {t.dump}
                    </button>
                    <button 
                       onClick={() => handleManipulation('reset')}
                       className="w-full py-3 bg-binance-gray/50 hover:bg-binance-gray text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2"
                     >
-                      <RefreshCw size={18} /> Reset to Market Price
+                      <RefreshCw size={18} /> {t.reset}
                    </button>
                 </div>
              </div>
@@ -388,12 +386,12 @@ const AdminDashboard: React.FC = () => {
         return (
           <div className="max-w-2xl bg-binance-black border border-binance-gray rounded-2xl p-8 animate-fade-in shadow-xl mx-auto">
             <h3 className="text-xl font-bold text-white mb-8 flex items-center gap-2">
-              <Settings size={22} className="text-binance-yellow" /> System Control
+              <Settings size={22} className="text-binance-yellow" /> {t.system_control}
             </h3>
             <div className="space-y-8">
               <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-xs text-binance-subtext font-bold uppercase">USD to AMD Rate</label>
+                    <label className="text-xs text-binance-subtext font-bold uppercase">{t.usd_rate}</label>
                     <input 
                       type="number" 
                       value={tempSettings.usdToAmdRate} 
@@ -402,7 +400,7 @@ const AdminDashboard: React.FC = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs text-binance-subtext font-bold uppercase">Platform Fee (%)</label>
+                    <label className="text-xs text-binance-subtext font-bold uppercase">{t.fee_percent}</label>
                     <input 
                       type="number" 
                       step="0.01"
@@ -419,8 +417,8 @@ const AdminDashboard: React.FC = () => {
                     <Activity size={20} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-white">AI Analyst Engine</h4>
-                    <p className="text-xs text-binance-subtext">Enable real-time market insights for all users</p>
+                    <h4 className="font-bold text-white">{t.ai_engine}</h4>
+                    <p className="text-xs text-binance-subtext">{t.ai_desc}</p>
                   </div>
                 </div>
                 <button 
@@ -434,11 +432,11 @@ const AdminDashboard: React.FC = () => {
               <button 
                 onClick={() => {
                   updateSettings(tempSettings);
-                  alert('Համակարգի կարգավորումները հաջողությամբ թարմացվեցին:');
+                  alert(language === 'AM' ? 'Համակարգի կարգավորումները հաջողությամբ թարմացվեցին:' : 'System settings updated successfully.');
                 }}
                 className="w-full py-4 bg-binance-yellow text-black font-bold rounded-xl hover:shadow-xl transition-all flex items-center justify-center gap-2"
               >
-                <Save size={20} /> Apply Global Changes
+                <Save size={20} /> {t.apply_changes}
               </button>
             </div>
           </div>
@@ -452,7 +450,6 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#0b0e11]">
-      {/* Integrated Header */}
       <AdminHeader />
 
       <div className="flex flex-1 overflow-hidden">
@@ -460,19 +457,19 @@ const AdminDashboard: React.FC = () => {
         <aside className="w-64 bg-binance-black border-r border-binance-gray p-6 hidden lg:block sticky top-16 h-[calc(100vh-64px)]">
           <nav className="space-y-2">
             <button onClick={() => setActiveTab('overview')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'overview' ? 'bg-binance-yellow text-black shadow-lg shadow-yellow-500/10' : 'text-binance-subtext hover:bg-binance-gray/20'}`}>
-              <LayoutDashboard size={18} /> Overview
+              <LayoutDashboard size={18} /> {t.overview}
             </button>
             <button onClick={() => setActiveTab('trading')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'trading' ? 'bg-binance-yellow text-black shadow-lg shadow-yellow-500/10' : 'text-binance-subtext hover:bg-binance-gray/20'}`}>
-              <Zap size={18} /> Market Making
+              <Zap size={18} /> {t.trading}
             </button>
             <button onClick={() => setActiveTab('kyc')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'kyc' ? 'bg-binance-yellow text-black shadow-lg shadow-yellow-500/10' : 'text-binance-subtext hover:bg-binance-gray/20'}`}>
-              <ShieldCheck size={18} /> KYC Review
+              <ShieldCheck size={18} /> {t.kyc_review}
             </button>
             <button onClick={() => setActiveTab('users')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'users' ? 'bg-binance-yellow text-black shadow-lg shadow-yellow-500/10' : 'text-binance-subtext hover:bg-binance-gray/20'}`}>
-              <Users size={18} /> User Database
+              <Users size={18} /> {t.users_db}
             </button>
             <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'settings' ? 'bg-binance-yellow text-black shadow-lg shadow-yellow-500/10' : 'text-binance-subtext hover:bg-binance-gray/20'}`}>
-              <Settings size={18} /> Configuration
+              <Settings size={18} /> {t.configuration}
             </button>
           </nav>
         </aside>
@@ -482,18 +479,23 @@ const AdminDashboard: React.FC = () => {
           <main className="p-6 md:p-10 flex-1">
             <header className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h2 className="text-3xl font-bold text-white tracking-tight uppercase">{activeTab}</h2>
+                <h2 className="text-3xl font-bold text-white tracking-tight uppercase">
+                  {activeTab === 'overview' ? t.overview : 
+                   activeTab === 'trading' ? t.trading : 
+                   activeTab === 'kyc' ? t.kyc_review : 
+                   activeTab === 'users' ? t.users_db : 
+                   t.configuration}
+                </h2>
                 <p className="text-binance-subtext text-sm">Dashboard / {activeTab}</p>
               </div>
               <div className="text-xs bg-binance-gray/30 px-4 py-2 rounded-lg border border-binance-gray text-binance-subtext">
-                Last login: <span className="text-white">{new Date().toLocaleTimeString()}</span>
+                {t.last_login}: <span className="text-white">{new Date().toLocaleTimeString()}</span>
               </div>
             </header>
             
             {renderContent()}
           </main>
 
-          {/* Integrated Footer */}
           <AdminFooter />
         </div>
       </div>
