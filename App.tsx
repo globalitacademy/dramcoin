@@ -15,10 +15,22 @@ import { HeroSection, FeaturesSection, TokenomicsSection, RoadmapSection, Calcul
 import { ViewState } from './types';
 import { StoreProvider, useStore } from './context/StoreContext';
 import { translations } from './translations';
+import { Loader2 } from 'lucide-react';
 
 const AppContent: React.FC = () => {
-  const { language, setSelectedSymbol, currentView, setView, user, isAdminAuthenticated } = useStore();
+  const { language, setSelectedSymbol, currentView, setView, isLoading, isAdminAuthenticated } = useStore();
   const t = translations[language].market;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-binance-dark flex flex-col items-center justify-center">
+        <div className="w-16 h-16 bg-binance-yellow/20 rounded-3xl flex items-center justify-center mb-4">
+           <Loader2 className="animate-spin text-binance-yellow" size={32} />
+        </div>
+        <p className="text-binance-subtext font-bold animate-pulse">Initializing DramCoin Hub...</p>
+      </div>
+    );
+  }
 
   const renderView = () => {
     switch(currentView) {

@@ -5,7 +5,8 @@ import { GoogleGenAI } from "@google/genai";
  * Provides market analysis using the Gemini AI model with Google Search grounding.
  */
 export const getMarketAnalysis = async (query: string, marketContext: string): Promise<{text: string, sources?: any[]}> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  // Always use {apiKey: process.env.API_KEY} directly
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
     // Using gemini-3-flash-preview for fast and real-time grounded responses.

@@ -2,12 +2,12 @@
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { translations } from '../translations';
-import { Mail, Lock, User, ShieldCheck, Eye, EyeOff, AlertCircle, ArrowLeft, Smartphone, Globe, Loader2, X } from 'lucide-react';
+import { Mail, Lock, User, ShieldCheck, Eye, EyeOff, AlertCircle, ArrowLeft, Smartphone, Globe, Loader2, Phone } from 'lucide-react';
 
-type AuthStep = 'login' | 'register' | 'forgot' | 'verify';
+type AuthStep = 'login' | 'register' | 'forgot' | 'verify' | 'phone';
 
 const AuthView: React.FC = () => {
-  const { language, login, register, loginWithGoogle } = useStore();
+  const { language, login, register, loginWithGoogle, loginWithPhone, verifyOtp } = useStore();
   const t = translations[language].auth;
   
   const [step, setStep] = useState<AuthStep>('login');
@@ -15,28 +15,52 @@ const AuthView: React.FC = () => {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [otpToken, setOtpToken] = useState('');
+  
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
 
-  // Google Simulation State
-  const [showGooglePopup, setShowGooglePopup] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    setError('');
+    const result = await loginWithGoogle();
+    
+    if (result && !result.success) {
+      if (result.message?.includes('provider is not enabled')) {
+        setError(language === 'AM' 
+          ? 'Google մուտքը դեռ միացված չէ Supabase Dashboard-ում: Խնդրում ենք ակտիվացնել այն:' 
+          : 'Google login is not enabled in Supabase Dashboard yet.');
+      } else {
+        setError(result.message || (language === 'AM' ? 'Google-ով մուտքը ձախողվեց:' : 'Google login failed.'));
+      }
+    }
+    setIsLoading(false);
+  };
 
-  const mockGoogleAccounts = [
-    { name: 'Armen Sargsyan', email: 'armen.s@gmail.com', avatar: 'AS' },
-    { name: 'Hayk Martirosyan', email: 'hayk.crypto@gmail.com', avatar: 'HM' },
-    { name: 'Anush Davtyan', email: 'anush.d88@gmail.com', avatar: 'AD' }
-  ];
+  const handlePhoneSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    const res = await loginWithPhone(phoneNumber);
+    if (res.success) {
+      setStep('verify');
+    } else {
+      setError(res.message || 'Phone auth failed');
+    }
+    setIsLoading(false);
+  };
 
-  const handleGoogleSelect = (account: typeof mockGoogleAccounts[0]) => {
-    setIsGoogleLoading(true);
-    setTimeout(() => {
-        loginWithGoogle(account.email, account.name.split(' ')[0]);
-        setIsGoogleLoading(false);
-        setShowGooglePopup(false);
-    }, 1500);
+  const handleOtpVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    const res = await verifyOtp(phoneNumber, otpToken);
+    if (!res.success) {
+      setError(res.message || 'Invalid code');
+    }
+    setIsLoading(false);
   };
 
   const getPasswordStrength = (pass: string) => {
@@ -51,46 +75,30 @@ const AuthView: React.FC = () => {
 
   const strength = getPasswordStrength(password);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
-    
-    setTimeout(() => {
-        const result = login(email, password);
-        if (!result.success) {
-            setError(language === 'AM' ? 'Սխալ էլ. հասցե կամ գաղտնաբառ' : 'Invalid email or password');
-            setIsLoading(false);
-        }
-    }, 1000);
+    const result = await login(email, password);
+    if (!result.success) {
+        setError(language === 'AM' ? 'Սխալ տվյալներ' : 'Invalid credentials');
+    }
+    setIsLoading(false);
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
         setError(language === 'AM' ? 'Գաղտնաբառերը չեն համընկնում' : 'Passwords do not match');
         return;
     }
-    if (strength < 2) {
-        setError(language === 'AM' ? 'Գաղտնաբառը շատ թույլ է' : 'Password is too weak');
-        return;
-    }
-    
     setIsLoading(true);
     setError('');
-    
-    setTimeout(() => {
-        setStep('verify');
-        setIsLoading(false);
-    }, 1000);
-  };
-
-  const handleVerify = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-        register(username, email, password);
-        setIsLoading(false);
-    }, 1500);
+    const result = await register(username, email, password);
+    if (!result.success) {
+        setError(result.message || 'Registration failed');
+    }
+    setIsLoading(false);
   };
 
   const renderStrengthMeter = () => (
@@ -107,10 +115,8 @@ const AuthView: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-binance-dark flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Decorative Circles */}
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-binance-yellow/5 rounded-full blur-[120px] -z-10"></div>
-      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[120px] -z-10"></div>
-
+      
       <div className="w-full max-w-md bg-binance-black border border-binance-gray rounded-3xl p-8 shadow-2xl animate-fade-in z-10">
         
         {step !== 'login' && (
@@ -124,11 +130,8 @@ const AuthView: React.FC = () => {
                 <ShieldCheck size={32} />
             </div>
             <h2 className="text-2xl font-bold text-white">
-                {step === 'login' ? t.login_title : step === 'register' ? t.register_title : step === 'verify' ? t.verify_title : t.reset_title}
+                {step === 'login' ? t.login_title : step === 'register' ? t.register_title : step === 'verify' ? t.verify_title : step === 'phone' ? language === 'AM' ? 'Հեռախոսով մուտք' : 'Phone Login' : t.reset_title}
             </h2>
-            <p className="text-binance-subtext text-sm mt-2">
-                {step === 'verify' ? t.verify_desc : step === 'forgot' ? t.reset_desc : ''}
-            </p>
         </div>
 
         {error && (
@@ -168,16 +171,11 @@ const AuthView: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 px-1">
-                    <input type="checkbox" id="remember" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} className="accent-binance-yellow" />
-                    <label htmlFor="remember" className="text-xs text-binance-subtext cursor-pointer">{t.remember_me}</label>
-                </div>
-
                 <button 
                     disabled={isLoading}
-                    className="w-full py-4 bg-binance-yellow text-black font-bold rounded-xl hover:shadow-xl transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none mt-4"
+                    className="w-full py-4 bg-binance-yellow text-black font-bold rounded-xl hover:shadow-xl transition-all active:scale-95 disabled:opacity-50 mt-4"
                 >
-                    {isLoading ? <div className="w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin mx-auto"></div> : t.btn_login}
+                    {isLoading ? <Loader2 className="animate-spin mx-auto" /> : t.btn_login}
                 </button>
 
                 <div className="text-center pt-4">
@@ -194,15 +192,44 @@ const AuthView: React.FC = () => {
                 <div className="grid grid-cols-2 gap-3">
                     <button 
                         type="button" 
-                        onClick={() => setShowGooglePopup(true)}
-                        className="flex items-center justify-center gap-2 py-3 border border-binance-gray rounded-xl hover:bg-binance-gray/30 transition-colors text-sm font-medium"
+                        onClick={handleGoogleLogin}
+                        disabled={isLoading}
+                        className="flex items-center justify-center gap-2 py-3 border border-binance-gray rounded-xl hover:bg-binance-gray/30 transition-colors text-sm font-medium disabled:opacity-50"
                     >
-                        <Globe size={18} className="text-blue-400" /> Google
+                        {isLoading ? <Loader2 className="animate-spin" size={18} /> : <Globe size={18} className="text-blue-400" />} Google
                     </button>
-                    <button type="button" className="flex items-center justify-center gap-2 py-3 border border-binance-gray rounded-xl hover:bg-binance-gray/30 transition-colors text-sm font-medium">
-                        <Smartphone size={18} className="text-binance-yellow" /> Wallet
+                    <button 
+                        type="button" 
+                        onClick={() => setStep('phone')}
+                        disabled={isLoading}
+                        className="flex items-center justify-center gap-2 py-3 border border-binance-gray rounded-xl hover:bg-binance-gray/30 transition-colors text-sm font-medium disabled:opacity-50"
+                    >
+                        <Smartphone size={18} className="text-binance-yellow" /> Phone
                     </button>
                 </div>
+            </form>
+        )}
+
+        {step === 'phone' && (
+            <form onSubmit={handlePhoneSubmit} className="space-y-4">
+                <div className="space-y-1">
+                    <label className="text-xs text-binance-subtext ml-1 uppercase font-bold tracking-wider">{language === 'AM' ? 'Հեռախոսահամար' : 'Phone Number'}</label>
+                    <div className="relative">
+                        <Phone className="absolute left-3 top-3.5 text-binance-subtext" size={18} />
+                        <input 
+                            type="tel" required
+                            placeholder="+374XXXXXXXX"
+                            value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)}
+                            className="w-full bg-binance-dark border border-binance-gray rounded-xl py-3 pl-10 pr-4 text-white focus:border-binance-yellow focus:outline-none"
+                        />
+                    </div>
+                </div>
+                <button 
+                    disabled={isLoading}
+                    className="w-full py-4 bg-binance-yellow text-black font-bold rounded-xl hover:shadow-xl transition-all active:scale-95 disabled:opacity-50"
+                >
+                    {isLoading ? <Loader2 className="animate-spin mx-auto" /> : t.phone_btn}
+                </button>
             </form>
         )}
 
@@ -242,126 +269,35 @@ const AuthView: React.FC = () => {
                     </div>
                     {renderStrengthMeter()}
                 </div>
-                <div className="space-y-1">
-                    <label className="text-xs text-binance-subtext ml-1 uppercase font-bold tracking-wider">{t.confirm_password}</label>
-                    <div className="relative">
-                        <Lock className="absolute left-3 top-3.5 text-binance-subtext" size={18} />
-                        <input 
-                            type="password" required
-                            value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
-                            className="w-full bg-binance-dark border border-binance-gray rounded-xl py-3 pl-10 pr-4 text-white focus:border-binance-yellow focus:outline-none"
-                        />
-                    </div>
-                </div>
-
                 <button 
                     disabled={isLoading}
                     className="w-full py-4 bg-binance-yellow text-black font-bold rounded-xl hover:shadow-xl transition-all active:scale-95 disabled:opacity-50 mt-4"
                 >
-                    {isLoading ? <div className="w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin mx-auto"></div> : t.btn_register}
+                    {isLoading ? <Loader2 className="animate-spin mx-auto" /> : t.btn_register}
                 </button>
-
-                <div className="text-center pt-4">
-                    <p className="text-sm text-binance-subtext">
-                        {t.have_account} <button type="button" onClick={() => setStep('login')} className="text-binance-yellow font-bold hover:underline">{t.btn_login}</button>
-                    </p>
-                </div>
             </form>
         )}
 
         {step === 'verify' && (
             <div className="space-y-6">
-                <div className="flex justify-center gap-2">
-                    {[1, 2, 3, 4, 5, 6].map(i => (
-                        <input 
-                            key={i} type="text" maxLength={1}
-                            className="w-12 h-14 bg-binance-dark border border-binance-gray rounded-xl text-center text-xl font-bold text-binance-yellow focus:border-binance-yellow focus:outline-none"
-                        />
-                    ))}
-                </div>
-                <button 
-                    onClick={handleVerify}
-                    className="w-full py-4 bg-binance-yellow text-black font-bold rounded-xl hover:shadow-xl transition-all active:scale-95"
-                >
-                    {isLoading ? <div className="w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin mx-auto"></div> : t.verify_btn}
-                </button>
+                <p className="text-center text-binance-subtext text-sm">{t.verify_desc}</p>
+                <form onSubmit={handleOtpVerify} className="space-y-4">
+                    <input 
+                        type="text" maxLength={6} required
+                        placeholder="XXXXXX"
+                        value={otpToken} onChange={e => setOtpToken(e.target.value)}
+                        className="w-full bg-binance-dark border border-binance-gray rounded-xl py-4 text-center text-2xl font-bold text-binance-yellow focus:border-binance-yellow focus:outline-none"
+                    />
+                    <button 
+                        disabled={isLoading}
+                        className="w-full py-4 bg-binance-yellow text-black font-bold rounded-xl hover:shadow-xl transition-all active:scale-95"
+                    >
+                        {isLoading ? <Loader2 className="animate-spin mx-auto" /> : t.verify_btn}
+                    </button>
+                </form>
             </div>
-        )}
-
-        {step === 'forgot' && (
-             <form onSubmit={e => { e.preventDefault(); alert('Reset link sent!'); setStep('login'); }} className="space-y-4">
-                <div className="space-y-1">
-                    <label className="text-xs text-binance-subtext ml-1">{t.email}</label>
-                    <div className="relative">
-                        <Mail className="absolute left-3 top-3.5 text-binance-subtext" size={18} />
-                        <input 
-                            type="email" required
-                            className="w-full bg-binance-dark border border-binance-gray rounded-xl py-3 pl-10 pr-4 text-white focus:border-binance-yellow focus:outline-none"
-                        />
-                    </div>
-                </div>
-                <button 
-                    className="w-full py-4 bg-binance-yellow text-black font-bold rounded-xl hover:shadow-xl transition-all active:scale-95 mt-4"
-                >
-                    {t.reset_btn}
-                </button>
-            </form>
         )}
       </div>
-
-      {/* Google Sign-In Simulation Popup */}
-      {showGooglePopup && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-sm rounded-lg shadow-2xl overflow-hidden animate-fade-in relative">
-                {isGoogleLoading && (
-                    <div className="absolute inset-0 bg-white/80 z-10 flex flex-col items-center justify-center">
-                        <Loader2 className="animate-spin text-blue-600 mb-2" size={32} />
-                        <span className="text-xs text-gray-600 font-medium">Signing in...</span>
-                    </div>
-                )}
-                
-                <div className="p-6 border-b flex justify-between items-center">
-                    <img src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png" alt="Google" className="h-6" />
-                    <button onClick={() => setShowGooglePopup(false)} className="text-gray-400 hover:text-gray-600">
-                        <X size={20} />
-                    </button>
-                </div>
-
-                <div className="p-8">
-                    <h3 className="text-xl font-medium text-gray-900 text-center mb-1">Choose an account</h3>
-                    <p className="text-sm text-gray-600 text-center mb-8">to continue to DramCoin</p>
-
-                    <div className="space-y-2">
-                        {mockGoogleAccounts.map((acc, i) => (
-                            <button 
-                                key={i}
-                                onClick={() => handleGoogleSelect(acc)}
-                                className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition-colors border-b border-gray-100 last:border-0"
-                            >
-                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">
-                                    {acc.avatar}
-                                </div>
-                                <div className="text-left">
-                                    <div className="text-sm font-medium text-gray-900">{acc.name}</div>
-                                    <div className="text-xs text-gray-500">{acc.email}</div>
-                                </div>
-                            </button>
-                        ))}
-                        <button className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition-colors mt-4">
-                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-xs">
-                                <User size={16} />
-                            </div>
-                            <div className="text-sm font-medium text-gray-700">Use another account</div>
-                        </button>
-                    </div>
-
-                    <div className="mt-8 text-[11px] text-gray-500 text-center">
-                        To continue, Google will share your name, email address, language preference, and profile picture with DramCoin.
-                    </div>
-                </div>
-            </div>
-        </div>
-      )}
     </div>
   );
 };
