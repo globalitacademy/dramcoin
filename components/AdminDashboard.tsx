@@ -21,7 +21,9 @@ import {
   Trash2,
   CheckCircle,
   XCircle,
-  AlertTriangle
+  AlertTriangle,
+  LayoutDashboard,
+  Globe
 } from 'lucide-react';
 import { ViewState } from '../types';
 import { translations } from '../translations';
@@ -36,7 +38,8 @@ const AdminDashboard: React.FC = () => {
     manipulatePrice, 
     adminLogout, 
     adminVerifyKyc,
-    language
+    language,
+    setLanguage
   } = useStore();
   
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'transactions' | 'settings' | 'trading' | 'kyc'>('overview');
@@ -60,7 +63,7 @@ const AdminDashboard: React.FC = () => {
 
   const filteredUsers = allUsers.filter(u => 
     u.username.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    u.email.toLowerCase().includes(searchTerm.toLowerCase())
+    (u.email && u.email.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const stats = [
@@ -88,6 +91,92 @@ const AdminDashboard: React.FC = () => {
     else if (type === 'dump') manipulatePrice(symbol, -15);
     else manipulatePrice(symbol, 0);
   };
+
+  const AdminHeader = () => (
+    <header className="h-16 bg-binance-black border-b border-binance-gray flex items-center justify-between px-6 sticky top-0 z-50">
+      <div className="flex items-center gap-4">
+        <div className="w-8 h-8 rounded-lg bg-binance-yellow flex items-center justify-center text-black font-bold">A</div>
+        <h1 className="text-white font-bold tracking-wider hidden md:block">DRAMCOIN <span className="text-binance-yellow">ADMIN PANEL</span></h1>
+      </div>
+      
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-2 px-3 py-1 bg-binance-gray/30 rounded-lg border border-binance-gray/50">
+           <Globe size={14} className="text-binance-subtext" />
+           <button onClick={() => setLanguage('AM')} className={`text-xs font-bold ${language === 'AM' ? 'text-binance-yellow' : 'text-binance-subtext'}`}>AM</button>
+           <span className="text-binance-gray">|</span>
+           <button onClick={() => setLanguage('EN')} className={`text-xs font-bold ${language === 'EN' ? 'text-binance-yellow' : 'text-binance-subtext'}`}>EN</button>
+        </div>
+        
+        <div className="h-8 w-px bg-binance-gray"></div>
+        
+        <button 
+          onClick={adminLogout}
+          className="flex items-center gap-2 text-binance-subtext hover:text-binance-red transition-colors font-bold text-sm"
+        >
+          <LogOut size={18} />
+          <span className="hidden sm:inline">{t.logout}</span>
+        </button>
+      </div>
+    </header>
+  );
+
+  const AdminFooter = () => (
+    <footer className="p-6 bg-binance-dark border-t border-binance-gray mt-auto">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-binance-subtext">
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-binance-green"></div> System Online</span>
+          <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-binance-green"></div> Supabase Connected</span>
+          <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-binance-green"></div> Binance API Live</span>
+        </div>
+        <p>© 2024 DramCoin Exchange. Admin Dashboard v2.1.0</p>
+      </div>
+    </footer>
+  );
+
+  const StatCards = () => (
+    <div className="space-y-8 animate-fade-in">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {stats.map((s, i) => (
+          <div key={i} className="bg-binance-black border border-binance-gray p-6 rounded-2xl hover:border-binance-yellow/40 transition-all shadow-lg group">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-3 bg-binance-gray/30 rounded-xl group-hover:scale-110 transition-transform">{s.icon}</div>
+              <span className="text-[10px] font-bold text-binance-green bg-binance-green/10 px-2 py-1 rounded-full uppercase">{s.change}</span>
+            </div>
+            <h4 className="text-binance-subtext text-xs mb-1 uppercase font-bold tracking-widest">{s.label}</h4>
+            <div className="text-2xl font-bold text-white font-mono">{s.value}</div>
+          </div>
+        ))}
+      </div>
+      
+      <div className="grid lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 bg-binance-black border border-binance-gray rounded-2xl p-8 shadow-xl">
+          <div className="flex justify-between items-center mb-8">
+              <h3 className="font-bold text-white flex items-center gap-2"><BarChart3 size={20} className="text-binance-yellow" /> Platform Load (24h)</h3>
+          </div>
+          <div className="h-64 flex items-end justify-between gap-1.5">
+             {[35, 60, 45, 80, 55, 75, 40, 90, 65, 50, 85, 70, 45, 60, 80, 40, 55, 75, 95, 65, 50, 40, 60, 80].map((h, i) => (
+               <div key={i} className="flex-1 bg-gradient-to-t from-binance-yellow/20 to-binance-yellow rounded-t-sm" style={{ height: `${h}%` }}></div>
+             ))}
+          </div>
+        </div>
+        
+        <div className="bg-binance-black border border-binance-gray rounded-2xl p-8 shadow-xl flex flex-col">
+          <h3 className="font-bold text-white mb-8">Արագ Գործողություններ</h3>
+          <div className="space-y-4 flex-1">
+             <button onClick={() => setActiveTab('trading')} className="w-full flex items-center justify-between p-5 bg-binance-gray/10 rounded-2xl hover:bg-binance-gray/30 transition-all group">
+                <div className="flex items-center gap-4"><Zap className="text-binance-yellow" /> <span className="text-sm font-bold text-white">Market Making</span></div>
+             </button>
+             <button onClick={() => setActiveTab('kyc')} className="w-full flex items-center justify-between p-5 bg-binance-gray/10 rounded-2xl hover:bg-binance-gray/30 transition-all group">
+                <div className="flex items-center gap-4"><ShieldCheck className="text-yellow-500" /> <span className="text-sm font-bold text-white">KYC Review</span></div>
+             </button>
+             <button onClick={adminLogout} className="w-full flex items-center justify-between p-5 bg-binance-red/5 rounded-2xl hover:bg-binance-red/10 group mt-auto">
+                <div className="flex items-center gap-4"><LogOut className="text-binance-red" /> <span className="text-sm font-bold text-binance-red">Sign-out</span></div>
+             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   const renderContent = () => {
     switch(activeTab) {
@@ -357,74 +446,57 @@ const AdminDashboard: React.FC = () => {
 
       case 'overview':
       default:
-        // Fixed: Corrected invalid JSX syntax by adding missing angle brackets and ensuring prop name consistency
-        return (<StatCards Stats={stats} globalTransactions={globalTransactions} setActiveTab={setActiveTab} adminLogout={adminLogout} />);
+        return <StatCards />;
     }
   };
 
-  const StatCards = ({ Stats, globalTransactions, setActiveTab, adminLogout }: any) => (
-    <div className="space-y-8 animate-fade-in">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {Stats.map((s: any, i: number) => (
-          <div key={i} className="bg-binance-black border border-binance-gray p-6 rounded-2xl hover:border-binance-yellow/40 transition-all shadow-lg group">
-            <div className="flex justify-between items-start mb-4">
-              <div className="p-3 bg-binance-gray/30 rounded-xl group-hover:scale-110 transition-transform">{s.icon}</div>
-              <span className="text-[10px] font-bold text-binance-green bg-binance-green/10 px-2 py-1 rounded-full uppercase">{s.change}</span>
-            </div>
-            <h4 className="text-binance-subtext text-xs mb-1 uppercase font-bold tracking-widest">{s.label}</h4>
-            <div className="text-2xl font-bold text-white font-mono">{s.value}</div>
-          </div>
-        ))}
-      </div>
-      
-      <div className="grid lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-binance-black border border-binance-gray rounded-2xl p-8 shadow-xl">
-          <div className="flex justify-between items-center mb-8">
-              <h3 className="font-bold text-white flex items-center gap-2"><BarChart3 size={20} className="text-binance-yellow" /> Platform Load (24h)</h3>
-          </div>
-          <div className="h-64 flex items-end justify-between gap-1.5">
-             {[35, 60, 45, 80, 55, 75, 40, 90, 65, 50, 85, 70, 45, 60, 80, 40, 55, 75, 95, 65, 50, 40, 60, 80].map((h, i) => (
-               <div key={i} className="flex-1 bg-gradient-to-t from-binance-yellow/20 to-binance-yellow rounded-t-sm" style={{ height: `${h}%` }}></div>
-             ))}
-          </div>
-        </div>
-        
-        <div className="bg-binance-black border border-binance-gray rounded-2xl p-8 shadow-xl flex flex-col">
-          <h3 className="font-bold text-white mb-8">Quick Actions</h3>
-          <div className="space-y-4 flex-1">
-             <button onClick={() => setActiveTab('trading')} className="w-full flex items-center justify-between p-5 bg-binance-gray/10 rounded-2xl hover:bg-binance-gray/30 transition-all group">
-                <div className="flex items-center gap-4"><Zap className="text-binance-yellow" /> <span className="text-sm font-bold text-white">Market Making</span></div>
-             </button>
-             <button onClick={() => setActiveTab('kyc')} className="w-full flex items-center justify-between p-5 bg-binance-gray/10 rounded-2xl hover:bg-binance-gray/30 transition-all group">
-                <div className="flex items-center gap-4"><ShieldCheck className="text-yellow-500" /> <span className="text-sm font-bold text-white">KYC Review</span></div>
-             </button>
-             <button onClick={adminLogout} className="w-full flex items-center justify-between p-5 bg-binance-red/5 rounded-2xl hover:bg-binance-red/10 group mt-auto">
-                <div className="flex items-center gap-4"><LogOut className="text-binance-red" /> <span className="text-sm font-bold text-binance-red">Sign-out</span></div>
-             </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
-    <div className="flex min-h-screen bg-[#0b0e11] pt-16">
-      <aside className="w-64 bg-binance-black border-r border-binance-gray p-6 hidden lg:block sticky top-16 h-[calc(100vh-64px)]">
-        <nav className="space-y-2">
-          <button onClick={() => setActiveTab('overview')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold ${activeTab === 'overview' ? 'bg-binance-yellow text-black' : 'text-binance-subtext'}`}><BarChart3 /> Overview</button>
-          <button onClick={() => setActiveTab('trading')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold ${activeTab === 'trading' ? 'bg-binance-yellow text-black' : 'text-binance-subtext'}`}><Zap /> Market</button>
-          <button onClick={() => setActiveTab('kyc')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold ${activeTab === 'kyc' ? 'bg-binance-yellow text-black' : 'text-binance-subtext'}`}><ShieldCheck /> KYC</button>
-          <button onClick={() => setActiveTab('users')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold ${activeTab === 'users' ? 'bg-binance-yellow text-black' : 'text-binance-subtext'}`}><Users /> Users</button>
-          <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold ${activeTab === 'settings' ? 'bg-binance-yellow text-black' : 'text-binance-subtext'}`}><Settings /> Config</button>
-        </nav>
-      </aside>
+    <div className="flex flex-col min-h-screen bg-[#0b0e11]">
+      {/* Integrated Header */}
+      <AdminHeader />
 
-      <main className="flex-1 p-6 md:p-10">
-        <header className="mb-10">
-          <h2 className="text-3xl font-bold text-white">{activeTab.toUpperCase()}</h2>
-        </header>
-        {renderContent()}
-      </main>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <aside className="w-64 bg-binance-black border-r border-binance-gray p-6 hidden lg:block sticky top-16 h-[calc(100vh-64px)]">
+          <nav className="space-y-2">
+            <button onClick={() => setActiveTab('overview')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'overview' ? 'bg-binance-yellow text-black shadow-lg shadow-yellow-500/10' : 'text-binance-subtext hover:bg-binance-gray/20'}`}>
+              <LayoutDashboard size={18} /> Overview
+            </button>
+            <button onClick={() => setActiveTab('trading')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'trading' ? 'bg-binance-yellow text-black shadow-lg shadow-yellow-500/10' : 'text-binance-subtext hover:bg-binance-gray/20'}`}>
+              <Zap size={18} /> Market Making
+            </button>
+            <button onClick={() => setActiveTab('kyc')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'kyc' ? 'bg-binance-yellow text-black shadow-lg shadow-yellow-500/10' : 'text-binance-subtext hover:bg-binance-gray/20'}`}>
+              <ShieldCheck size={18} /> KYC Review
+            </button>
+            <button onClick={() => setActiveTab('users')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'users' ? 'bg-binance-yellow text-black shadow-lg shadow-yellow-500/10' : 'text-binance-subtext hover:bg-binance-gray/20'}`}>
+              <Users size={18} /> User Database
+            </button>
+            <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'settings' ? 'bg-binance-yellow text-black shadow-lg shadow-yellow-500/10' : 'text-binance-subtext hover:bg-binance-gray/20'}`}>
+              <Settings size={18} /> Configuration
+            </button>
+          </nav>
+        </aside>
+
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col overflow-y-auto">
+          <main className="p-6 md:p-10 flex-1">
+            <header className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-3xl font-bold text-white tracking-tight uppercase">{activeTab}</h2>
+                <p className="text-binance-subtext text-sm">Dashboard / {activeTab}</p>
+              </div>
+              <div className="text-xs bg-binance-gray/30 px-4 py-2 rounded-lg border border-binance-gray text-binance-subtext">
+                Last login: <span className="text-white">{new Date().toLocaleTimeString()}</span>
+              </div>
+            </header>
+            
+            {renderContent()}
+          </main>
+
+          {/* Integrated Footer */}
+          <AdminFooter />
+        </div>
+      </div>
     </div>
   );
 };

@@ -86,6 +86,7 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // Hide the global navbar and assistant when in specific views
   const showNavbar = currentView !== ViewState.ADMIN && currentView !== ViewState.AUTH && currentView !== ViewState.VERIFY;
 
   return (
