@@ -11,6 +11,9 @@ interface StoreContextType {
   isAdminAuthenticated: boolean;
   login: (email: string, pass: string) => Promise<{ success: boolean; message?: string }>;
   register: (username: string, email: string, pass: string) => Promise<{ success: boolean; message?: string }>;
+  loginWithGoogle: () => Promise<{ success: boolean; message?: string }>;
+  loginWithPhone: (phone: string) => Promise<{ success: boolean; message?: string }>;
+  verifyOtp: (phone: string, token: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => Promise<void>;
   adminLogin: (email: string, pass: string) => Promise<{ success: boolean; message?: string }>;
   adminLogout: () => void;
@@ -86,82 +89,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     morseReward: 50000
   });
 
-  const userRef = useRef(user);
-  useEffect(() => { userRef.current = user; }, [user]);
-
   const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Math.random().toString(36).substr(2, 9);
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
-  };
-
-  const fetchSettings = async () => {
-    try {
-      const { data: settings, error } = await supabase.from('settings').select('*').eq('id', 1).maybeSingle();
-      if (error) throw error;
-      if (settings) {
-        setSystemSettings({
-          usdToAmdRate: Number(settings.usd_to_amd),
-          isAiEnabled: true,
-          platformFee: Number(settings.platform_fee),
-          secretMorseCode: settings.morse_code || 'DRAM',
-          morseReward: Number(settings.morse_reward) || 50000
-        });
-      }
-    } catch (e) {
-      console.error("Fetch settings failed", e);
-    }
-  };
-
-  const fetchPrices = async () => {
-    try {
-      // Use multiple mirrors for robustness
-      const mirrors = ['https://api.binance.com', 'https://api1.binance.com', 'https://api2.binance.com'];
-      let data = null;
-      
-      for (const mirror of mirrors) {
-        try {
-          const res = await fetch(`${mirror}/api/v3/ticker/24hr?symbols=["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT"]`);
-          if (res.ok) {
-            data = await res.json();
-            break;
-          }
-        } catch (e) {
-          continue;
-        }
-      }
-
-      const { data: settings } = await supabase.from('settings').select('listing_price').eq('id', 1).maybeSingle();
-      const dmcListingPrice = settings?.listing_price || 0.54;
-
-      const liveCoins = Array.isArray(data) ? data.map((d: any) => ({
-        id: d.symbol,
-        symbol: d.symbol.replace('USDT', ''),
-        name: d.symbol.replace('USDT', ''),
-        price: parseFloat(d.lastPrice),
-        change24h: parseFloat(d.priceChangePercent),
-        volume: parseFloat(d.quoteVolume).toLocaleString(),
-        marketCap: 'Live'
-      })) : [];
-
-      const dmcCoin = {
-        id: 'DMCUSDT',
-        symbol: 'DMC',
-        name: 'DramCoin',
-        price: Number(dmcListingPrice),
-        change24h: 0.15,
-        volume: '1.2M',
-        marketCap: '540M'
-      };
-
-      setMarketData([dmcCoin, ...liveCoins]);
-    } catch (e) {
-      console.warn("Prices fetch failed", e);
-      // Ensure DMC is at least shown even if API fails
-      if (marketData.length === 0) {
-        setMarketData([{ id: 'DMCUSDT', symbol: 'DMC', name: 'DramCoin', price: 0.54, change24h: 0, volume: '0', marketCap: '0' }]);
-      }
-    }
   };
 
   const syncUserData = useCallback(async (userId: string, email: string) => {
@@ -198,20 +129,60 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
+  const fetchSettings = async () => {
+    try {
+      const { data: settings } = await supabase.from('settings').select('*').eq('id', 1).maybeSingle();
+      if (settings) {
+        setSystemSettings({
+          usdToAmdRate: Number(settings.usd_to_amd),
+          isAiEnabled: true,
+          platformFee: Number(settings.platform_fee),
+          secretMorseCode: settings.morse_code || 'DRAM',
+          morseReward: Number(settings.morse_reward) || 50000
+        });
+      }
+    } catch (e) {
+      console.error("Settings fetch failed", e);
+    }
+  };
+
+  const fetchPrices = async () => {
+    try {
+      const mirrors = ['https://api.binance.com', 'https://api1.binance.com', 'https://api2.binance.com'];
+      let data = null;
+      for (const mirror of mirrors) {
+        try {
+          const res = await fetch(`${mirror}/api/v3/ticker/24hr?symbols=["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT"]`);
+          if (res.ok) { data = await res.json(); break; }
+        } catch (e) { continue; }
+      }
+      const { data: settings } = await supabase.from('settings').select('listing_price').eq('id', 1).maybeSingle();
+      const dmcListingPrice = settings?.listing_price || 0.54;
+      const liveCoins = Array.isArray(data) ? data.map((d: any) => ({
+        id: d.symbol,
+        symbol: d.symbol.replace('USDT', ''),
+        name: d.symbol.replace('USDT', ''),
+        price: parseFloat(d.lastPrice),
+        change24h: parseFloat(d.priceChangePercent),
+        volume: parseFloat(d.quoteVolume).toLocaleString(),
+        marketCap: 'Live'
+      })) : [];
+      setMarketData([{ id: 'DMCUSDT', symbol: 'DMC', name: 'DramCoin', price: Number(dmcListingPrice), change24h: 0.15, volume: '1.2M', marketCap: '540M' }, ...liveCoins]);
+    } catch (e) {
+      console.warn("Prices fetch failed", e);
+    }
+  };
+
   useEffect(() => {
     const init = async () => {
       try {
         setIsLoading(true);
         const { data: { session } } = await supabase.auth.getSession();
         if (session) await syncUserData(session.user.id, session.user.email || '');
-        await Promise.all([
-          fetchSettings(),
-          fetchPrices()
-        ]);
+        await Promise.all([fetchSettings(), fetchPrices()]);
       } catch (err) {
         console.error("Initialization failed", err);
       } finally {
-        // ALWAYS set loading to false to prevent hanging splash screen
         setIsLoading(false);
       }
     };
@@ -224,107 +195,29 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => subscription.unsubscribe();
   }, [syncUserData]);
 
-  useEffect(() => {
-    const interval = setInterval(fetchPrices, 15000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const manipulatePrice = async (symbol: string, percentage: number) => {
-    try {
-        if (symbol !== 'DMC') return;
-        const currentDmcPrice = marketData.find(c => c.symbol === 'DMC')?.price || 0.54;
-        const newPrice = Math.max(0.0001, currentDmcPrice * (1 + percentage / 100));
-        
-        const { error } = await supabase.from('settings').upsert({
-            id: 1,
-            listing_price: newPrice
-        });
-
-        if (error) throw error;
-        addToast(`Գինը փոխվեց: $${newPrice.toFixed(4)}`, "success");
-        await fetchPrices();
-    } catch (err: any) {
-        addToast(err.message, "error");
-    }
-  };
-
-  const setDirectPrice = async (symbol: string, price: number) => {
-    try {
-        if (symbol !== 'DMC') return;
-        const { error } = await supabase.from('settings').upsert({
-            id: 1,
-            listing_price: price
-        });
-
-        if (error) throw error;
-        addToast(`Գինը սահմանվեց: $${price.toFixed(4)}`, "success");
-        await fetchPrices();
-    } catch (err: any) {
-        addToast(err.message, "error");
-    }
-  };
-
-  const updateSettings = async (newSettings: Partial<SystemSettings>) => {
-    try {
-        const { error } = await supabase.from('settings').upsert({
-            id: 1,
-            usd_to_amd: newSettings.usdToAmdRate,
-            platform_fee: newSettings.platformFee,
-            morse_code: newSettings.secretMorseCode,
-            morse_reward: newSettings.morseReward
-        });
-
-        if (error) throw error;
-        await fetchSettings();
-        addToast("Կարգավորումները պահպանվեցին", "success");
-    } catch (err: any) {
-        addToast(err.message, "error");
-    }
-  };
-
-  const clickCoin = () => {
-    if (user.energy < user.tapLevel) return;
-    setUser(prev => ({
-      ...prev,
-      apricots: prev.apricots + prev.tapLevel,
-      totalEarnedApricots: prev.totalEarnedApricots + prev.tapLevel,
-      energy: prev.energy - prev.tapLevel
-    }));
-  };
-
-  const submitMorse = async (code: string) => {
-    if (code.toUpperCase() === systemSettings.secretMorseCode.toUpperCase()) {
-      const reward = systemSettings.morseReward;
-      const newUser = { 
-        ...user, 
-        apricots: user.apricots + reward, 
-        totalEarnedApricots: user.totalEarnedApricots + reward,
-        lastMorseClaimedAt: new Date().toISOString()
-      };
-      setUser(newUser);
-      await supabase.from('profiles').update({ 
-        apricots: newUser.apricots, 
-        total_earned_apricots: newUser.totalEarnedApricots,
-        last_morse_claimed_at: newUser.lastMorseClaimedAt
-      }).eq('id', user.id);
-      addToast(`Շնորհավոր: Դուք ստացաք ${reward.toLocaleString()} Ծիրան`, "success");
-      return { success: true };
-    }
-    return { success: false };
-  };
-
   return (
     <StoreContext.Provider value={{
       user, marketData, systemSettings, isAdminAuthenticated,
       currentPrice: marketData.find(c => c.symbol === selectedSymbol)?.price || 0,
       language, setLanguage, selectedSymbol, setSelectedSymbol, currentView, setView, isLoading, toasts, addToast,
-      updateSettings, manipulatePrice, setDirectPrice, clickCoin, submitMorse,
       login: async (e, p) => {
         const { error } = await supabase.auth.signInWithPassword({ email: e, password: p });
         return { success: !error, message: error?.message };
       },
       register: async (u, e, p) => {
         const { error } = await supabase.auth.signUp({ email: e, password: p, options: { data: { username: u } } });
+        return { success: !error, message: error?.message };
+      },
+      loginWithGoogle: async () => {
+        const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+        return { success: !error, message: error?.message };
+      },
+      loginWithPhone: async (phone) => {
+        const { error } = await supabase.auth.signInWithOtp({ phone });
+        return { success: !error, message: error?.message };
+      },
+      verifyOtp: async (phone, token) => {
+        const { error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' });
         return { success: !error, message: error?.message };
       },
       logout: async () => { await supabase.auth.signOut(); setView(ViewState.HOME); },
@@ -337,6 +230,42 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return { success: false, message: 'Իրավունքների բացակայություն' };
       },
       adminLogout: () => { supabase.auth.signOut(); setIsAdminAuthenticated(false); setView(ViewState.HOME); },
+      clickCoin: () => {
+        if (user.energy < user.tapLevel) return;
+        setUser(prev => ({ ...prev, apricots: prev.apricots + prev.tapLevel, energy: prev.energy - prev.tapLevel }));
+      },
+      submitMorse: async (code) => {
+        if (code.toUpperCase() === systemSettings.secretMorseCode.toUpperCase()) {
+          const reward = systemSettings.morseReward;
+          const newUser = { ...user, apricots: user.apricots + reward, lastMorseClaimedAt: new Date().toISOString() };
+          setUser(newUser);
+          await supabase.from('profiles').update({ apricots: newUser.apricots, last_morse_claimed_at: newUser.lastMorseClaimedAt }).eq('id', user.id);
+          addToast(`Շնորհավոր: Դուք ստացաք ${reward.toLocaleString()} Ծիրան`, "success");
+          return { success: true };
+        }
+        return { success: false };
+      },
+      updateSettings: async (ns) => {
+        await supabase.from('settings').upsert({ id: 1, usd_to_amd: ns.usdToAmdRate, platform_fee: ns.platformFee, morse_code: ns.secretMorseCode, morse_reward: ns.morseReward });
+        fetchSettings();
+        addToast("Կարգավորումները պահպանվեցին", "success");
+      },
+      manipulatePrice: async (s, p) => {
+        const cur = marketData.find(c => c.symbol === 'DMC')?.price || 0.54;
+        const n = Math.max(0.0001, cur * (1 + p / 100));
+        await supabase.from('settings').upsert({ id: 1, listing_price: n });
+        fetchPrices();
+        addToast(`Գինը փոխվեց: $${n.toFixed(4)}`, "success");
+      },
+      setDirectPrice: async (s, pr) => {
+        await supabase.from('settings').upsert({ id: 1, listing_price: pr });
+        fetchPrices();
+        addToast(`Գինը սահմանվեց: $${pr.toFixed(4)}`, "success");
+      },
+      adminVerifyKyc: async (uid, status) => {
+        await supabase.from('profiles').update({ kyc_status: status }).eq('id', uid);
+        addToast(`KYC Կարգավիճակը թարմացվեց`, 'success');
+      },
       upgradeTap: async () => ({ success: true }),
       upgradeEnergy: async () => ({ success: true }),
       upgradeBot: async () => ({ success: true }),
@@ -345,11 +274,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       getLeaderboard: async () => [],
       exchangeApricots: async () => ({ success: true }),
       executeTrade: async () => ({ success: true, message: '' }),
-      submitKyc: async () => {}, deposit: async () => {}, transfer: async () => ({ success: true }),
-      adminVerifyKyc: async (uid, status) => {
-        await supabase.from('profiles').update({ kyc_status: status }).eq('id', uid);
-        addToast(`KYC Կարգավիճակը թարմացվեց`, 'success');
-      }
+      submitKyc: async () => {}, deposit: async () => {}, transfer: async () => ({ success: true })
     }}>
       {children}
     </StoreContext.Provider>
