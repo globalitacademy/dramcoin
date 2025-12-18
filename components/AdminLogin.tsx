@@ -2,23 +2,27 @@
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { translations } from '../translations';
-import { ShieldCheck, Lock, User, AlertCircle } from 'lucide-react';
+import { ShieldCheck, Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
 
 const AdminLogin: React.FC = () => {
   const { language, adminLogin } = useStore();
   const t = translations[language].admin;
 
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = adminLogin(username, password);
-    if (!success) {
-      setError(true);
-      setTimeout(() => setError(false), 3000);
+    setIsLoading(true);
+    setErrorMsg('');
+    
+    const result = await adminLogin(email, password);
+    if (!result.success) {
+      setErrorMsg(result.message || t.error);
     }
+    setIsLoading(false);
   };
 
   return (
@@ -34,15 +38,15 @@ const AdminLogin: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <label className="text-sm text-binance-subtext ml-1">{t.username}</label>
+            <label className="text-sm text-binance-subtext ml-1">{language === 'AM' ? 'Էլ. հասցե' : 'Email'}</label>
             <div className="relative">
-              <User className="absolute left-3 top-3.5 text-binance-subtext" size={18} />
+              <Mail className="absolute left-3 top-3.5 text-binance-subtext" size={18} />
               <input 
-                type="text" 
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                type="email" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-binance-dark border border-binance-gray rounded-xl py-3 pl-10 pr-4 text-white focus:border-binance-yellow focus:outline-none transition-colors"
-                placeholder="Admin"
+                placeholder="admin@dramcoin.com"
                 required
               />
             </div>
@@ -63,18 +67,19 @@ const AdminLogin: React.FC = () => {
             </div>
           </div>
 
-          {error && (
+          {errorMsg && (
             <div className="bg-red-900/20 border border-red-900/50 text-red-400 p-3 rounded-lg text-sm flex items-center gap-2 animate-shake">
               <AlertCircle size={16} />
-              {t.error}
+              {errorMsg}
             </div>
           )}
 
           <button 
             type="submit"
-            className="w-full py-4 bg-binance-yellow text-black font-bold rounded-xl hover:shadow-[0_0_20px_rgba(252,213,53,0.3)] transition-all active:scale-95 text-lg"
+            disabled={isLoading}
+            className="w-full py-4 bg-binance-yellow text-black font-bold rounded-xl hover:shadow-[0_0_20px_rgba(252,213,53,0.3)] transition-all active:scale-95 text-lg flex items-center justify-center gap-2"
           >
-            {t.login_btn}
+            {isLoading ? <Loader2 className="animate-spin" size={20} /> : t.login_btn}
           </button>
         </form>
       </div>

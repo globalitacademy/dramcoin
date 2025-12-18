@@ -3,10 +3,21 @@
 <html lang="hy">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DramCoin Exchange</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>DramCoin Exchange & Tap-to-Earn</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="metadata.json" />
+    <meta name="theme-color" content="#fcd535" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="DMC Hub" />
+    <link rel="apple-touch-icon" href="https://api.dicebear.com/7.x/bottts/svg?seed=DMC&backgroundColor=fcd535" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Combined modern Inter and Noto Sans Armenian for premium feel -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Noto+Sans+Armenian:wght@400;500;600;700;900&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         theme: {
@@ -24,11 +35,12 @@
               }
             },
             fontFamily: {
-              sans: ['Inter', 'sans-serif'],
+              sans: ['Inter', 'Noto Sans Armenian', 'sans-serif'],
             },
             animation: {
               'float': 'float 6s ease-in-out infinite',
               'marquee': 'marquee 30s linear infinite',
+              'pulse-soft': 'pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             },
             keyframes: {
               float: {
@@ -38,6 +50,10 @@
               marquee: {
                 '0%': { transform: 'translateX(0%)' },
                 '100%': { transform: 'translateX(-100%)' },
+              },
+              'pulse-soft': {
+                '0%, 100%': { opacity: 1 },
+                '50%': { opacity: 0.7 },
               }
             }
           }
@@ -48,6 +64,16 @@
       body {
         background-color: #181a20;
         color: #eaecef;
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior-y: contain;
+        /* Improved font rendering for Armenian */
+        font-family: 'Inter', 'Noto Sans Armenian', sans-serif;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+      }
+      /* Ensure Armenian text has better line height for vertical character strokes */
+      p, span, h1, h2, h3, h4, button {
+        line-height: 1.5;
       }
       /* Custom Scrollbar */
       ::-webkit-scrollbar {
@@ -63,6 +89,12 @@
       }
       ::-webkit-scrollbar-thumb:hover {
         background: #474d57;
+      }
+      /* PWA splash-like feel */
+      @media (display-mode: standalone) {
+        nav {
+          padding-top: env(safe-area-inset-top);
+        }
       }
     </style>
   <script type="importmap">
@@ -81,5 +113,16 @@
 </head>
   <body>
     <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').then(reg => {
+            console.log('SW registered:', reg);
+          }).catch(err => {
+            console.log('SW registration failed:', err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>

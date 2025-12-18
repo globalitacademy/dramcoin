@@ -3,11 +3,12 @@ import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { translations } from '../translations';
 import { Mail, Lock, User, ShieldCheck, Eye, EyeOff, AlertCircle, CheckCircle, ArrowLeft, Smartphone, Globe, Loader2, Phone } from 'lucide-react';
+import { ViewState } from '../types';
 
 type AuthStep = 'login' | 'register' | 'forgot' | 'verify' | 'phone';
 
 const AuthView: React.FC = () => {
-  const { language, login, register, loginWithGoogle, loginWithPhone, verifyOtp } = useStore();
+  const { language, login, register, loginWithGoogle, loginWithPhone, verifyOtp, setView } = useStore();
   const t = translations[language].auth;
   
   const [step, setStep] = useState<AuthStep>('login');
@@ -29,7 +30,9 @@ const AuthView: React.FC = () => {
     setSuccess('');
     try {
       const result = await loginWithGoogle();
-      if (result && !result.success) {
+      if (result && result.success) {
+        setView(ViewState.HOME);
+      } else if (result && !result.success) {
         setError(result.message || (language === 'AM' ? 'Google-ով մուտքը ձախողվեց:' : 'Google login failed.'));
       }
     } catch (err: any) {
@@ -58,7 +61,9 @@ const AuthView: React.FC = () => {
     setIsLoading(true);
     setError('');
     const res = await verifyOtp(phoneNumber, otpToken);
-    if (!res.success) {
+    if (res.success) {
+      setView(ViewState.HOME);
+    } else {
       setError(res.message || 'Invalid code');
     }
     setIsLoading(false);
@@ -82,8 +87,16 @@ const AuthView: React.FC = () => {
     setError('');
     setSuccess('');
     const result = await login(email, password);
-    if (!result.success) {
-        setError(result.message || (language === 'AM' ? 'Մուտքի տվյալները սխալ են' : 'Invalid login credentials'));
+    if (result.success) {
+        setView(ViewState.HOME);
+    } else {
+        // Handle confirmed email error or other auth errors
+        const msg = result.message || '';
+        if (msg.includes('Email not confirmed')) {
+          setError(language === 'AM' ? 'Էլ. հասցեն հաստատված չէ։ Խնդրում ենք ստուգել Ձեր էլ. փոստը:' : 'Email not confirmed. Please check your inbox.');
+        } else {
+          setError(msg || (language === 'AM' ? 'Մուտքի տվյալները սխալ են' : 'Invalid login credentials'));
+        }
     }
     setIsLoading(false);
   };
@@ -103,12 +116,9 @@ const AuthView: React.FC = () => {
     
     if (result.success) {
         setSuccess(result.message || (language === 'AM' 
-            ? 'Գրանցումը հաջողվեց։ Տեղափոխում ենք հաստատման էջ...' 
-            : 'Registration successful! Redirecting to verification...'));
-        // If message contains confirmation info, don't automatically redirect
-        if (result.message?.includes('email') || result.message?.includes('փոստ')) {
-           setIsLoading(false);
-        }
+            ? 'Գրանցումը հաջողվեց։ Խնդրում ենք հաստատել Ձեր էլ. փոստը նախքան մուտք գործելը:' 
+            : 'Registration successful! Please verify your email before logging in.'));
+        setIsLoading(false);
     } else {
         setError(result.message || (language === 'AM' ? 'Գրանցումը ձախողվեց' : 'Registration failed'));
         setIsLoading(false);
@@ -133,9 +143,9 @@ const AuthView: React.FC = () => {
       
       <div className="w-full max-w-md bg-binance-black border border-binance-gray rounded-3xl p-8 shadow-2xl animate-fade-in z-10">
         
-        {step !== 'login' && !success && (
-            <button onClick={() => setStep('login')} className="mb-6 text-binance-subtext hover:text-white flex items-center gap-1 text-sm transition-colors">
-                <ArrowLeft size={16} /> {language === 'AM' ? 'Հետ' : 'Back'}
+        {(step !== 'login' || success) && (
+            <button onClick={() => { setStep('login'); setSuccess(''); setError(''); }} className="mb-6 text-binance-subtext hover:text-white flex items-center gap-1 text-sm transition-colors">
+                <ArrowLeft size={16} /> {language === 'AM' ? 'Հետ դեպի Մուտք' : 'Back to Login'}
             </button>
         )}
 
@@ -157,10 +167,10 @@ const AuthView: React.FC = () => {
         {success && (
             <div className="bg-binance-green/10 border border-binance-green/30 text-binance-green p-4 rounded-xl text-sm flex flex-col items-center gap-3 mb-6 animate-fade-in text-center">
                 <CheckCircle size={24} />
-                <p>{success}</p>
-                {(success.includes('email') || success.includes('փոստ')) && (
-                  <button onClick={() => { setSuccess(''); setStep('login'); }} className="text-xs underline font-bold">Վերադառնալ մուտքի էջ</button>
-                )}
+                <p className="font-bold">{success}</p>
+                <button onClick={() => { setSuccess(''); setStep('login'); }} className="mt-2 text-xs underline font-bold hover:text-white transition-colors">
+                    {language === 'AM' ? 'Անցնել մուտքի էջ' : 'Go to Login Page'}
+                </button>
             </div>
         )}
 
@@ -174,6 +184,7 @@ const AuthView: React.FC = () => {
                             type="email" required
                             value={email} onChange={e => setEmail(e.target.value)}
                             className="w-full bg-binance-dark border border-binance-gray rounded-xl py-3 pl-10 pr-4 text-white focus:border-binance-yellow focus:outline-none transition-colors"
+                            placeholder="example@mail.com"
                         />
                     </div>
                 </div>
@@ -196,15 +207,16 @@ const AuthView: React.FC = () => {
                 </div>
 
                 <button 
+                    type="submit"
                     disabled={isLoading}
-                    className="w-full py-4 bg-binance-yellow text-black font-bold rounded-xl hover:shadow-xl transition-all active:scale-95 disabled:opacity-50 mt-4"
+                    className="w-full py-4 bg-binance-yellow text-black font-bold rounded-xl hover:shadow-xl transition-all active:scale-95 disabled:opacity-50 mt-4 flex items-center justify-center"
                 >
-                    {isLoading ? <Loader2 className="animate-spin mx-auto" /> : t.btn_login}
+                    {isLoading ? <Loader2 className="animate-spin" size={20} /> : t.btn_login}
                 </button>
 
                 <div className="text-center pt-4">
                     <p className="text-sm text-binance-subtext">
-                        {t.no_account} <button type="button" onClick={() => setStep('register')} className="text-binance-yellow font-bold hover:underline">{t.btn_register}</button>
+                        {t.no_account} <button type="button" onClick={() => { setStep('register'); setError(''); }} className="text-binance-yellow font-bold hover:underline">{t.btn_register}</button>
                     </p>
                 </div>
 
@@ -224,7 +236,7 @@ const AuthView: React.FC = () => {
                     </button>
                     <button 
                         type="button" 
-                        onClick={() => setStep('phone')}
+                        onClick={() => { setStep('phone'); setError(''); }}
                         disabled={isLoading}
                         className="flex items-center justify-center gap-2 py-3 border border-binance-gray rounded-xl hover:bg-binance-gray/30 transition-colors text-sm font-medium disabled:opacity-50"
                     >
@@ -244,6 +256,7 @@ const AuthView: React.FC = () => {
                             type="text" required
                             value={username} onChange={e => setUsername(e.target.value)}
                             className="w-full bg-binance-dark border border-binance-gray rounded-xl py-3 pl-10 pr-4 text-white focus:border-binance-yellow focus:outline-none"
+                            placeholder="Username"
                         />
                     </div>
                 </div>
@@ -255,6 +268,7 @@ const AuthView: React.FC = () => {
                             type="email" required
                             value={email} onChange={e => setEmail(e.target.value)}
                             className="w-full bg-binance-dark border border-binance-gray rounded-xl py-3 pl-10 pr-4 text-white focus:border-binance-yellow focus:outline-none"
+                            placeholder="Email"
                         />
                     </div>
                 </div>
@@ -266,6 +280,7 @@ const AuthView: React.FC = () => {
                             type={showPass ? 'text' : 'password'} required
                             value={password} onChange={e => setPassword(e.target.value)}
                             className="w-full bg-binance-dark border border-binance-gray rounded-xl py-3 pl-10 pr-4 text-white focus:border-binance-yellow focus:outline-none"
+                            placeholder="••••••••"
                         />
                     </div>
                     {renderStrengthMeter()}
@@ -278,20 +293,44 @@ const AuthView: React.FC = () => {
                             type={showPass ? 'text' : 'password'} required
                             value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
                             className="w-full bg-binance-dark border border-binance-gray rounded-xl py-3 pl-10 pr-4 text-white focus:border-binance-yellow focus:outline-none"
+                            placeholder="••••••••"
                         />
                     </div>
                 </div>
                 <button 
+                    type="submit"
                     disabled={isLoading}
-                    className="w-full py-4 bg-binance-yellow text-black font-bold rounded-xl hover:shadow-xl transition-all active:scale-95 disabled:opacity-50 mt-4"
+                    className="w-full py-4 bg-binance-yellow text-black font-bold rounded-xl hover:shadow-xl transition-all active:scale-95 disabled:opacity-50 mt-4 flex items-center justify-center"
                 >
-                    {isLoading ? <Loader2 className="animate-spin mx-auto" /> : t.btn_register}
+                    {isLoading ? <Loader2 className="animate-spin" size={20} /> : t.btn_register}
                 </button>
                 <div className="text-center pt-4">
                     <p className="text-sm text-binance-subtext">
-                        {t.have_account} <button type="button" onClick={() => setStep('login')} className="text-binance-yellow font-bold hover:underline">{t.btn_login}</button>
+                        {t.have_account} <button type="button" onClick={() => { setStep('login'); setError(''); }} className="text-binance-yellow font-bold hover:underline">{t.btn_login}</button>
                     </p>
                 </div>
+            </form>
+        )}
+
+        {!success && step === 'phone' && (
+            <form onSubmit={handlePhoneSubmit} className="space-y-6 animate-fade-in">
+                <p className="text-center text-binance-subtext text-sm">Մուտքագրեք Ձեր հեռախոսահամարը՝ մուտք գործելու համար։</p>
+                <div className="relative">
+                    <Phone className="absolute left-3 top-3.5 text-binance-subtext" size={18} />
+                    <input 
+                        type="tel" required
+                        value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)}
+                        placeholder="+374XXXXXXXX"
+                        className="w-full bg-binance-dark border border-binance-gray rounded-xl py-3 pl-10 pr-4 text-white focus:border-binance-yellow focus:outline-none"
+                    />
+                </div>
+                <button 
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full py-4 bg-binance-yellow text-black font-bold rounded-xl hover:shadow-xl transition-all active:scale-95 flex items-center justify-center"
+                >
+                    {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'Շարունակել'}
+                </button>
             </form>
         )}
 
@@ -306,12 +345,34 @@ const AuthView: React.FC = () => {
                         className="w-full bg-binance-dark border border-binance-gray rounded-xl py-4 text-center text-2xl font-bold text-binance-yellow focus:border-binance-yellow focus:outline-none"
                     />
                     <button 
+                        type="submit"
                         disabled={isLoading}
-                        className="w-full py-4 bg-binance-yellow text-black font-bold rounded-xl hover:shadow-xl transition-all active:scale-95"
+                        className="w-full py-4 bg-binance-yellow text-black font-bold rounded-xl hover:shadow-xl transition-all active:scale-95 flex items-center justify-center"
                     >
-                        {isLoading ? <Loader2 className="animate-spin mx-auto" /> : t.verify_btn}
+                        {isLoading ? <Loader2 className="animate-spin" size={20} /> : t.verify_btn}
                     </button>
                 </form>
+            </div>
+        )}
+
+        {!success && step === 'forgot' && (
+            <div className="space-y-6 animate-fade-in">
+                <p className="text-center text-binance-subtext text-sm">{t.reset_desc}</p>
+                <div className="relative">
+                    <Mail className="absolute left-3 top-3.5 text-binance-subtext" size={18} />
+                    <input 
+                        type="email" required
+                        value={email} onChange={e => setEmail(e.target.value)}
+                        placeholder="example@mail.com"
+                        className="w-full bg-binance-dark border border-binance-gray rounded-xl py-3 pl-10 pr-4 text-white focus:border-binance-yellow focus:outline-none"
+                    />
+                </div>
+                <button 
+                    disabled={isLoading}
+                    className="w-full py-4 bg-binance-yellow text-black font-bold rounded-xl hover:shadow-xl transition-all active:scale-95 flex items-center justify-center"
+                >
+                    {isLoading ? <Loader2 className="animate-spin" size={20} /> : t.reset_btn}
+                </button>
             </div>
         )}
       </div>

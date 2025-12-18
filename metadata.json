@@ -1,6 +1,27 @@
 {
-  "name": "DramCoin Exchange",
-  "description": "A modern, Binance-inspired cryptocurrency exchange interface with AI market analysis capabilities.",
+  "name": "DramCoin Hub: Tap-to-Earn",
+  "short_name": "DMC Hub",
+  "description": "Premium Cryptocurrency Exchange & Tap-to-Earn Platform for DramCoin ecosystem.",
+  "icons": [
+    {
+      "src": "https://api.dicebear.com/7.x/bottts/png?seed=DMC&backgroundColor=fcd535&size=192",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://api.dicebear.com/7.x/bottts/png?seed=DMC&backgroundColor=fcd535&size=512",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#181a20",
+  "theme_color": "#fcd535",
+  "orientation": "portrait",
+  "scope": "./",
   "requestFramePermissions": [
     "camera"
   ]

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { ViewState } from '../types';
 import { useStore } from '../context/StoreContext';
-import { Menu, Globe, Wallet, LogOut, X, ChevronDown, User as UserIcon } from 'lucide-react';
+import { Menu, Globe, Wallet, LogOut, X, ChevronDown, User as UserIcon, Zap } from 'lucide-react';
 import { translations } from '../translations';
 
 const Navbar: React.FC = () => {
@@ -13,10 +13,9 @@ const Navbar: React.FC = () => {
 
   const navLinks = [
     { name: t.home, view: ViewState.HOME, sectionId: 'hero' },
-    { name: t.about, view: ViewState.HOME, sectionId: 'features' },
-    { name: t.tokenomics, view: ViewState.HOME, sectionId: 'tokenomics' },
-    { name: t.roadmap, view: ViewState.HOME, sectionId: 'roadmap' },
-    { name: t.team, view: ViewState.HOME, sectionId: 'team' },
+    { name: t.markets, view: ViewState.MARKETS },
+    { name: t.trade, view: ViewState.TRADE },
+    { name: t.earn, view: ViewState.EARN },
   ];
 
   const handleNavClick = (view: ViewState, sectionId?: string) => {
@@ -34,7 +33,6 @@ const Navbar: React.FC = () => {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-binance-black/90 backdrop-blur-md border-b border-binance-gray">
       <div className="container mx-auto px-4 md:px-6 py-4 flex items-center justify-between">
         
-        {/* Logo */}
         <div 
           className="flex items-center gap-2 cursor-pointer group"
           onClick={() => setView(ViewState.HOME)}
@@ -47,36 +45,20 @@ const Navbar: React.FC = () => {
           </div>
         </div>
 
-        {/* Desktop Navigation */}
         <div className="hidden lg:flex items-center gap-8">
           {navLinks.map((link) => (
             <button
               key={link.name}
               onClick={() => handleNavClick(link.view, link.sectionId)}
-              className="text-sm font-medium text-binance-text hover:text-binance-yellow transition-colors uppercase tracking-wider"
+              className="text-sm font-medium text-binance-text hover:text-binance-yellow transition-colors uppercase tracking-wider flex items-center gap-1"
             >
+              {link.view === ViewState.EARN && <Zap size={14} className="text-binance-yellow" />}
               {link.name}
             </button>
           ))}
-          <div className="h-4 w-px bg-binance-gray mx-2"></div>
-          <button onClick={() => setView(ViewState.MARKETS)} className="text-sm font-medium text-white hover:text-binance-yellow">{t.markets}</button>
-          <button onClick={() => setView(ViewState.TRADE)} className="text-sm font-medium text-white hover:text-binance-yellow">{t.trade}</button>
         </div>
 
-        {/* Right Actions */}
         <div className="hidden lg:flex items-center gap-4">
-          <div className="relative group">
-            <button className="flex items-center gap-1 text-binance-subtext hover:text-white text-sm font-medium">
-              <Globe size={16} />
-              <span>{language}</span>
-              <ChevronDown size={12} />
-            </button>
-            <div className="absolute top-full right-0 mt-2 w-20 bg-binance-gray rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-              <button onClick={() => setLanguage('AM')} className="block w-full text-left px-3 py-2 text-sm text-white hover:bg-binance-black">AM</button>
-              <button onClick={() => setLanguage('EN')} className="block w-full text-left px-3 py-2 text-sm text-white hover:bg-binance-black">EN</button>
-            </div>
-          </div>
-
           {!user.isLoggedIn ? (
             <div className="flex items-center gap-3">
                 <button onClick={() => setView(ViewState.AUTH)} className="text-sm font-bold text-white hover:text-binance-yellow px-2">{t.login}</button>
@@ -114,28 +96,29 @@ const Navbar: React.FC = () => {
             <button
               key={link.name}
               onClick={() => handleNavClick(link.view, link.sectionId)}
-              className="text-left font-medium text-white hover:text-binance-yellow py-2"
+              className="text-left font-medium text-white hover:text-binance-yellow py-2 flex items-center gap-2"
             >
+              {link.view === ViewState.EARN && <Zap size={16} className="text-binance-yellow" />}
               {link.name}
             </button>
           ))}
           <div className="h-px w-full bg-binance-gray"></div>
-          <button onClick={() => handleNavClick(ViewState.MARKETS)} className="text-left font-medium text-white py-2">{t.markets}</button>
-          <button onClick={() => handleNavClick(ViewState.TRADE)} className="text-left font-medium text-white py-2">{t.trade}</button>
-          
-          <div className="flex items-center justify-between pt-4">
-             <div className="flex gap-4">
-                <button onClick={() => setLanguage('AM')} className={`text-sm ${language === 'AM' ? 'text-binance-yellow' : 'text-white'}`}>AM</button>
-                <button onClick={() => setLanguage('EN')} className={`text-sm ${language === 'EN' ? 'text-binance-yellow' : 'text-white'}`}>EN</button>
-             </div>
-             {!user.isLoggedIn ? (
-                <button onClick={() => setView(ViewState.AUTH)} className="bg-binance-yellow text-black px-4 py-2 rounded font-medium text-sm">
+          {!user.isLoggedIn ? (
+                <button onClick={() => handleNavClick(ViewState.AUTH)} className="bg-binance-yellow text-black px-6 py-2 rounded-lg font-bold text-sm">
                   {t.login}
                 </button>
              ) : (
-                <button onClick={logout} className="text-binance-red font-medium text-sm">{t.logout}</button>
+                <div className="flex items-center gap-4">
+                  <button onClick={() => handleNavClick(ViewState.WALLET)} className="flex items-center gap-2 text-white font-bold text-sm">
+                    <UserIcon size={16} className="text-binance-yellow" />
+                    <span>Իմ հաշիվը</span>
+                  </button>
+                  <button onClick={logout} className="text-binance-red font-bold text-sm flex items-center gap-1">
+                    <LogOut size={16} />
+                    {t.logout}
+                  </button>
+                </div>
              )}
-          </div>
         </div>
       )}
     </nav>

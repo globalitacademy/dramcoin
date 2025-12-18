@@ -30,7 +30,8 @@ export enum ViewState {
   AUTH = 'AUTH',
   PROFILE = 'PROFILE',
   VERIFY = 'VERIFY',
-  WHITEPAPER = 'WHITEPAPER'
+  WHITEPAPER = 'WHITEPAPER',
+  EARN = 'EARN'
 }
 
 export interface ChatMessage {
@@ -46,7 +47,7 @@ export interface Asset {
 
 export interface Transaction {
   id: string;
-  type: 'deposit' | 'withdrawal' | 'buy' | 'sell';
+  type: 'deposit' | 'withdrawal' | 'buy' | 'sell' | 'airdrop' | 'exchange';
   symbol: string;
   amount: number;
   date: string;
@@ -54,21 +55,48 @@ export interface Transaction {
 }
 
 export interface User {
+  id?: string;
   username: string;
   email: string;
   isLoggedIn: boolean;
-  isAdmin?: boolean;
+  role: 'user' | 'admin';
   kycStatus: 'unverified' | 'pending' | 'verified';
   twoFactorEnabled: boolean;
   assets: Asset[];
   transactions: Transaction[];
   lastLogin?: string;
+  apricots: number;
+  totalEarnedApricots: number;
+  tapLevel: number;
+  energy: number;
+  maxEnergy: number;
+  tapBotLevel: number;
+  lastMorseClaimedAt: string | null;
+  completedTasks: string[];
+  lastCheckInAt: string | null;
+  checkInStreak: number;
+  lastEnergyUpdateAt: string | null;
 }
 
 export interface SystemSettings {
+  id?: string;
   usdToAmdRate: number;
   isAiEnabled: boolean;
   platformFee: number;
+  secretMorseCode: string;
+  morseReward: number;
 }
 
 export type Language = 'AM' | 'EN';
+
+export interface Toast {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
+
+export interface LeaderboardEntry {
+  username: string;
+  apricots: number;
+  rank: number;
+}

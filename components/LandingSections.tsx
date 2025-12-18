@@ -8,26 +8,46 @@ import { ViewState } from '../types';
 
 // --- Hero Section ---
 export const HeroSection: React.FC<{ onBuyClick: () => void }> = ({ onBuyClick }) => {
-  const { language, setView } = useStore();
-  const t = translations[language].hero;
+  const { language, setView, marketData } = useStore();
+  // Safe access to translations
+  const t = (translations[language] || translations['AM']).hero;
 
-  const TickerItems = () => (
-    <>
-        <span className="text-white font-bold flex items-center gap-2">
-            <span className="text-binance-yellow text-lg">֏</span>
-            DRAMCOIN <span className="text-binance-green">$0.54 (+12%)</span>
-        </span>
-        <span className="text-binance-subtext">BTC $64,230</span>
-        <span className="text-binance-subtext">ETH $3,450</span>
-        <span className="text-binance-subtext">SOL $145</span>
-        <span className="text-binance-subtext">BNB $590</span>
-        <span className="text-binance-subtext">XRP $0.62</span>
-        <span className="text-binance-subtext">ADA $0.45</span>
-        <span className="text-binance-subtext">DOGE $0.12</span>
-        <span className="text-binance-subtext">DOT $7.20</span>
-        <span className="text-binance-subtext">AVAX $35.4</span>
-    </>
-  );
+  const TickerItems = () => {
+    const tickerSymbols = ['SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'AVAX', 'DMC', 'BTC', 'ETH'];
+    
+    return (
+      <div className="flex items-center gap-12">
+        {tickerSymbols.map(sym => {
+          const coin = marketData.find(c => c.symbol === sym);
+          if (!coin) return null;
+          
+          return (
+            <div key={sym} className="flex items-center gap-2 whitespace-nowrap">
+              {sym === 'DMC' ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full bg-binance-yellow flex items-center justify-center text-[10px] text-black font-black">֏</div>
+                  <span className="text-white font-black text-sm uppercase tracking-wider">DRAMCOIN</span>
+                  <span className="text-binance-green font-mono font-bold text-sm">
+                    ${coin.price.toFixed(4)} (+{coin.change24h}%)
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-binance-subtext font-bold text-xs uppercase tracking-widest">{sym}</span>
+                  <span className="text-white font-mono font-bold text-sm">
+                    ${coin.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                  <span className={`text-[10px] font-bold ${coin.change24h >= 0 ? 'text-binance-green' : 'text-binance-red'}`}>
+                    {coin.change24h >= 0 ? '+' : ''}{coin.change24h}%
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <section id="hero" className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
@@ -74,7 +94,6 @@ export const HeroSection: React.FC<{ onBuyClick: () => void }> = ({ onBuyClick }
         {/* 3D Coin Animation */}
         <div className="flex justify-center md:justify-end relative">
           <div className="w-[300px] h-[300px] md:w-[450px] md:h-[450px] relative animate-float">
-             {/* Glow */}
              <div className="absolute inset-0 bg-binance-yellow/20 rounded-full blur-[60px]"></div>
              <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-2xl" style={{filter: 'drop-shadow(0 20px 30px rgba(0,0,0,0.5))'}}>
                   <defs>
@@ -110,11 +129,11 @@ export const HeroSection: React.FC<{ onBuyClick: () => void }> = ({ onBuyClick }
       </div>
       
       {/* Live Ticker Marquee */}
-      <div className="absolute bottom-0 w-full bg-binance-gray/50 backdrop-blur-md border-t border-binance-gray py-3 overflow-hidden flex">
-         <div className="flex animate-marquee whitespace-nowrap min-w-full shrink-0 justify-around items-center px-4">
+      <div className="absolute bottom-0 w-full bg-binance-gray/40 backdrop-blur-xl border-t border-binance-gray/30 py-4 overflow-hidden flex shadow-[0_-10px_20px_rgba(0,0,0,0.3)]">
+         <div className="flex animate-marquee whitespace-nowrap min-w-full shrink-0 items-center px-4 gap-12">
              <TickerItems />
          </div>
-         <div className="flex animate-marquee whitespace-nowrap min-w-full shrink-0 justify-around items-center px-4">
+         <div className="flex animate-marquee whitespace-nowrap min-w-full shrink-0 items-center px-4 gap-12">
              <TickerItems />
          </div>
       </div>
@@ -125,7 +144,7 @@ export const HeroSection: React.FC<{ onBuyClick: () => void }> = ({ onBuyClick }
 // --- Features Section ---
 export const FeaturesSection: React.FC = () => {
     const { language } = useStore();
-    const t = translations[language].features;
+    const t = (translations[language] || translations['AM']).features;
 
     const features = [
         { icon: <Shield size={32} />, title: t.f1_title, desc: t.f1_desc },
@@ -159,7 +178,7 @@ export const FeaturesSection: React.FC = () => {
 // --- Tokenomics Section ---
 export const TokenomicsSection: React.FC = () => {
     const { language } = useStore();
-    const t = translations[language].tokenomics;
+    const t = (translations[language] || translations['AM']).tokenomics;
 
     const data = [
         { name: t.public, value: 40, color: '#fcd535' },
@@ -220,7 +239,7 @@ export const TokenomicsSection: React.FC = () => {
 // --- Roadmap Section ---
 export const RoadmapSection: React.FC = () => {
     const { language } = useStore();
-    const t = translations[language].roadmap;
+    const t = (translations[language] || translations['AM']).roadmap;
     const [isVisible, setIsVisible] = useState(false);
     const sectionRef = useRef<HTMLDivElement>(null);
 
@@ -258,11 +277,7 @@ export const RoadmapSection: React.FC = () => {
                 </div>
 
                 <div className="relative max-w-4xl mx-auto">
-                    {/* Vertical Background Line */}
                     <div className="absolute left-[19px] md:left-1/2 top-0 bottom-0 w-1 bg-binance-gray/30 transform md:-translate-x-1/2"></div>
-                    
-                    {/* Vertical Progress Line */}
-                    {/* Fix: changed scaleY to scale to fix TS error while maintaining visual effect for 1px line */}
                     <div 
                         className="absolute left-[19px] md:left-1/2 top-0 w-1 bg-gradient-to-b from-binance-yellow via-binance-green to-binance-gray/30 transform md:-translate-x-1/2 transition-all duration-[2000ms] ease-out origin-top"
                         style={{ height: isVisible ? '100%' : '0%', scale: isVisible ? 1 : 0 }}
@@ -278,9 +293,7 @@ export const RoadmapSection: React.FC = () => {
                                 style={{ transitionDelay: `${400 + (idx * 300)}ms` }}
                             >
                                 <div className="hidden md:block flex-1"></div>
-                                
-                                {/* Timeline Dot */}
-                                <div className={`absolute left-0 md:left-1/2 transform md:-translate-x-1/2 w-10 h-10 rounded-full border-4 flex items-center justify-center z-10 transition-all duration-500 delay-[${800 + (idx * 300)}ms] ${
+                                <div className={`absolute left-0 md:left-1/2 transform md:-translate-x-1/2 w-10 h-10 rounded-full border-4 flex items-center justify-center z-10 transition-all duration-500 ${
                                     item.status === 'completed' ? 'bg-binance-green border-binance-black text-black' : 
                                     item.status === 'active' ? 'bg-binance-yellow border-binance-yellow text-black animate-pulse' : 
                                     'bg-binance-black border-binance-gray text-binance-subtext'
@@ -315,7 +328,7 @@ export const RoadmapSection: React.FC = () => {
 // --- Team Section ---
 export const TeamSection: React.FC = () => {
     const { language } = useStore();
-    const t = translations[language].teamSection;
+    const t = (translations[language] || translations['AM']).teamSection;
 
     const team = [
         { 
@@ -364,7 +377,7 @@ export const TeamSection: React.FC = () => {
 // --- Calculator Section ---
 export const CalculatorSection: React.FC = () => {
     const { language, marketData, setView, setSelectedSymbol } = useStore();
-    const t = translations[language].calculator;
+    const t = (translations[language] || translations['AM']).calculator;
     
     const [payAmount, setPayAmount] = useState<string>('1000');
     const [receiveAmount, setReceiveAmount] = useState<string>('');
@@ -372,7 +385,7 @@ export const CalculatorSection: React.FC = () => {
     
     const USD_AMD_RATE = 390;
     const dmcCoin = marketData.find(c => c.symbol === 'DMC');
-    const dmcPriceUsd = dmcCoin ? dmcCoin.price : 200; 
+    const dmcPriceUsd = dmcCoin ? dmcCoin.price : 0.54; 
 
     const handlePayChange = (val: string) => {
         setPayAmount(val);
@@ -440,7 +453,7 @@ export const CalculatorSection: React.FC = () => {
                                 </div>
                             </div>
                             <div className="text-xs text-binance-subtext ml-1">
-                                1 DMC ≈ {currency === 'USD' ? `$${dmcPriceUsd.toFixed(2)}` : `${(dmcPriceUsd * USD_AMD_RATE).toFixed(0)} ֏`}
+                                1 DMC ≈ {currency === 'USD' ? `$${dmcPriceUsd.toFixed(4)}` : `${(dmcPriceUsd * USD_AMD_RATE).toFixed(0)} ֏`}
                             </div>
                          </div>
 
