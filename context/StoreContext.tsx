@@ -81,6 +81,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isLoading, setIsLoading] = useState(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [user, setUser] = useState<User>(INITIAL_USER);
+  const hasShownWelcomeToast = useRef(false);
+
   const [systemSettings, setSystemSettings] = useState<SystemSettings>({
     usdToAmdRate: 395,
     isAiEnabled: true,
@@ -97,37 +99,50 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const syncUserData = useCallback(async (userId: string, email: string) => {
     try {
-      const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
-      if (!profile) return;
+      let { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+      
+      if (!profile) {
+        const { data: createdProfile } = await supabase.from('profiles').upsert({
+          id: userId,
+          username: email.split('@')[0],
+          role: 'user',
+          kyc_status: 'unverified',
+          apricots: 0,
+          total_earned_apricots: 0
+        }).select().single();
+        profile = createdProfile;
+      }
+
+      if (profile && !hasShownWelcomeToast.current) {
+        addToast(`${language === 'AM' ? 'Բարի գալուստ' : 'Welcome'}, ${profile.username || 'User'}!`, 'success');
+        hasShownWelcomeToast.current = true;
+      }
 
       const { data: assets } = await supabase.from('assets').select('*').eq('user_id', userId);
       const isMasterAdmin = email.toLowerCase() === ADMIN_EMAIL;
-      if (isMasterAdmin || profile.role === 'admin') setIsAdminAuthenticated(true);
+      if (isMasterAdmin || profile?.role === 'admin') setIsAdminAuthenticated(true);
 
       setUser(prev => ({
         ...prev,
         id: userId,
-        username: profile.username || email.split('@')[0],
+        username: profile?.username || email.split('@')[0],
         email: email,
         isLoggedIn: true,
-        role: (isMasterAdmin || profile.role === 'admin') ? 'admin' : 'user',
-        kycStatus: profile.kyc_status || 'unverified',
-        apricots: Number(profile.apricots) || 0,
-        totalEarnedApricots: Number(profile.total_earned_apricots) || 0,
-        tapLevel: profile.tap_level || 1,
-        energy: Number(profile.energy) || 1000,
-        maxEnergy: profile.max_energy || 1000,
-        tapBotLevel: profile.tap_bot_level || 0,
-        completedTasks: profile.completed_tasks || [],
-        checkInStreak: profile.check_in_streak || 0,
-        lastCheckInAt: profile.last_check_in_at,
-        lastMorseClaimedAt: profile.last_morse_claimed_at,
+        role: (isMasterAdmin || profile?.role === 'admin') ? 'admin' : 'user',
+        kycStatus: profile?.kyc_status || 'unverified',
+        apricots: Number(profile?.apricots) || 0,
+        totalEarnedApricots: Number(profile?.total_earned_apricots) || 0,
+        tapLevel: profile?.tap_level || 1,
+        energy: Number(profile?.energy) || 1000,
+        maxEnergy: profile?.max_energy || 1000,
+        tapBotLevel: profile?.tap_bot_level || 0,
+        completedTasks: profile?.completed_tasks || [],
         assets: assets?.map(a => ({ symbol: a.symbol, amount: Number(a.amount), valueUsd: 0 })) || INITIAL_USER.assets,
       }));
     } catch (err) {
       console.error("Sync error", err);
     }
-  }, []);
+  }, [language]);
 
   const fetchSettings = async () => {
     try {
@@ -178,7 +193,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       try {
         setIsLoading(true);
         const { data: { session } } = await supabase.auth.getSession();
-        if (session) await syncUserData(session.user.id, session.user.email || '');
+        if (session) {
+          await syncUserData(session.user.id, session.user.email || '');
+        }
         await Promise.all([fetchSettings(), fetchPrices()]);
       } catch (err) {
         console.error("Initialization failed", err);
@@ -189,8 +206,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     init();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session) await syncUserData(session.user.id, session.user.email || '');
-      else { setUser(INITIAL_USER); setIsAdminAuthenticated(false); }
+      if (session) {
+        await syncUserData(session.user.id, session.user.email || '');
+      } else {
+        setUser(INITIAL_USER);
+        setIsAdminAuthenticated(false);
+        hasShownWelcomeToast.current = false;
+      }
     });
     return () => subscription.unsubscribe();
   }, [syncUserData]);
@@ -209,7 +231,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return { success: !error, message: error?.message };
       },
       loginWithGoogle: async () => {
-        const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+        const { error } = await supabase.auth.signInWithOAuth({ 
+          provider: 'google', 
+          options: { redirectTo: window.location.origin } 
+        });
         return { success: !error, message: error?.message };
       },
       loginWithPhone: async (phone) => {
@@ -220,7 +245,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const { error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' });
         return { success: !error, message: error?.message };
       },
-      logout: async () => { await supabase.auth.signOut(); setView(ViewState.HOME); },
+      logout: async () => { await supabase.auth.signOut(); setView(ViewState.HOME); hasShownWelcomeToast.current = false; },
       adminLogin: async (e, p) => {
         const { data, error } = await supabase.auth.signInWithPassword({ email: e, password: p });
         if (error) return { success: false, message: error.message };
@@ -229,7 +254,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (isMaster || profile?.role === 'admin') { setIsAdminAuthenticated(true); return { success: true }; }
         return { success: false, message: 'Իրավունքների բացակայություն' };
       },
-      adminLogout: () => { supabase.auth.signOut(); setIsAdminAuthenticated(false); setView(ViewState.HOME); },
+      adminLogout: () => { supabase.auth.signOut(); setIsAdminAuthenticated(false); setView(ViewState.HOME); hasShownWelcomeToast.current = false; },
       clickCoin: () => {
         if (user.energy < user.tapLevel) return;
         setUser(prev => ({ ...prev, apricots: prev.apricots + prev.tapLevel, energy: prev.energy - prev.tapLevel }));

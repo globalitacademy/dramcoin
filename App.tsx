@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Navbar from './components/Navbar';
 import MarketTable from './components/MarketTable';
 import TradingView from './components/TradingView';
@@ -17,18 +17,42 @@ import { HeroSection, FeaturesSection, TokenomicsSection, RoadmapSection, Calcul
 import { ViewState } from './types';
 import { StoreProvider, useStore } from './context/StoreContext';
 import { translations } from './translations';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Zap } from 'lucide-react';
 
 const AppContent: React.FC = () => {
-  const { language, setSelectedSymbol, currentView, setView, isLoading, isAdminAuthenticated } = useStore();
+  const { user, language, setSelectedSymbol, currentView, setView, isLoading, isAdminAuthenticated } = useStore();
+  const [isMounting, setIsMounting] = useState(true);
+
+  // Automatic redirect if user is logged in but stuck on AUTH view
+  useEffect(() => {
+    if (user.isLoggedIn && currentView === ViewState.AUTH) {
+      setTimeout(() => setView(ViewState.HOME), 300);
+    }
+  }, [user.isLoggedIn, currentView, setView]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      const timer = setTimeout(() => setIsMounting(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-binance-dark flex flex-col items-center justify-center">
-        <div className="w-16 h-16 bg-binance-yellow/20 rounded-3xl flex items-center justify-center mb-4">
-           <Loader2 className="animate-spin text-binance-yellow" size={32} />
+      <div className="min-h-screen bg-[#0b0e11] flex flex-col items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-binance-yellow/10 via-transparent to-transparent"></div>
+        <div className="relative z-10 flex flex-col items-center">
+            <div className="w-24 h-24 bg-binance-yellow rounded-[2rem] flex items-center justify-center text-black shadow-[0_0_50px_rgba(252,213,53,0.3)] animate-bounce mb-8">
+               <span className="text-5xl font-black">֏</span>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+                <p className="text-white text-xl font-black uppercase tracking-[0.2em]">DramCoin Hub</p>
+                <div className="flex items-center gap-2 text-binance-subtext font-bold text-sm">
+                   <Loader2 className="animate-spin text-binance-yellow" size={16} />
+                   <span className="animate-pulse">Initializing Security Protocol...</span>
+                </div>
+            </div>
         </div>
-        <p className="text-binance-subtext font-bold animate-pulse">Initializing DramCoin Hub...</p>
       </div>
     );
   }
@@ -42,14 +66,14 @@ const AppContent: React.FC = () => {
       case ViewState.TRADE: return <div className="min-h-screen pt-[72px]"><TradingView /></div>;
       case ViewState.EARN: return <EarnView />;
       case ViewState.MARKETS: return (
-        <div className="container mx-auto px-4 py-8 animate-fade-in pt-[100px] min-h-screen">
+        <div className="container mx-auto px-4 py-8 pt-[100px] min-h-screen">
           <MarketTable onTradeClick={(s) => { setSelectedSymbol(s); setView(ViewState.TRADE); }} />
         </div>
       );
       case ViewState.WALLET: return <div className="min-h-screen pt-[72px]"><WalletView /></div>;
       case ViewState.HOME:
       default: return (
-        <div className="animate-fade-in">
+        <>
           <HeroSection onBuyClick={() => { setSelectedSymbol('DMC'); setView(ViewState.TRADE); }} />
           <FeaturesSection />
           <TokenomicsSection />
@@ -57,7 +81,7 @@ const AppContent: React.FC = () => {
           <TeamSection />
           <CalculatorSection />
           <Footer />
-        </div>
+        </>
       );
     }
   };
@@ -65,11 +89,21 @@ const AppContent: React.FC = () => {
   const showNavbar = currentView !== ViewState.ADMIN && currentView !== ViewState.AUTH && currentView !== ViewState.VERIFY;
 
   return (
-    <div className="min-h-screen bg-[#181a20] text-[#eaecef] font-sans">
+    <div className={`min-h-screen bg-[#181a20] text-[#eaecef] font-sans transition-opacity duration-1000 ${isMounting ? 'opacity-0' : 'opacity-100'}`}>
       {showNavbar && <Navbar />}
       <ToastContainer />
-      <main>{renderView()}</main>
+      <main className="animate-page-transition">{renderView()}</main>
       {showNavbar && <AIAssistant />}
+      
+      <style>{`
+        @keyframes page-transition {
+          from { opacity: 0; transform: scale(0.98) translateY(10px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .animate-page-transition {
+          animation: page-transition 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
     </div>
   );
 };
